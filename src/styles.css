@@ -1,0 +1,29 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #f4f6f8; color: #1f2933; }
+.nav { display: flex; gap: 16px; align-items: center; padding: 10px 24px; background: #1f3a5f; color: #fff; }
+.nav a { color: #cfe1f7; text-decoration: none; }
+.container { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+.spacer { flex: 1; }
+.row { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+.card { background: #fff; border: 1px solid #dde3ea; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat { text-align: center; margin: 0; } .stat b { display: block; font-size: 28px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eef1f4; font-size: 14px; }
+input, select, textarea { padding: 8px; border: 1px solid #c3ccd6; border-radius: 6px; font: inherit; }
+.row input:not([type]) , .form input, .form textarea, .login input { flex: 1; min-width: 160px; }
+button, .btn { padding: 8px 14px; border: 1px solid #c3ccd6; background: #fff; border-radius: 6px; cursor: pointer; font: inherit; text-decoration: none; color: inherit; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.primary { background: #2f6fed; border-color: #2f6fed; color: #fff; }
+.form, .login { display: flex; flex-direction: column; gap: 10px; max-width: 480px; }
+.login { margin: 80px auto; }
+.error { background: #fde8e8; color: #9b1c1c; padding: 8px 12px; border-radius: 6px; margin: 8px 0; }
+.muted { color: #6b7785; font-size: 13px; }
+.badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #e5e9ee; }
+.st-Open { background: #dbeafe; } .st-InProgress { background: #fef3c7; } .st-Pending { background: #ede9fe; }
+.st-Resolved { background: #d1fae5; } .st-Closed { background: #e5e7eb; } .st-Cancelled { background: #fee2e2; }
+.pr-High { background: #ffedd5; } .pr-Critical { background: #dc2626; color: #fff; }
+tr.critical td { background: #fff5f5; }
+.comment { padding: 8px 0; border-bottom: 1px solid #eef1f4; }

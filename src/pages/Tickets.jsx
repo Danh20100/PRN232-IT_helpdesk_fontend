@@ -56,7 +56,7 @@ export default function Tickets() {
         title={user.role === "Staff" ? "Ticket được giao" : "Quản lý Ticket"}
         description="Theo dõi, tìm kiếm và quản lý các yêu cầu hỗ trợ kỹ thuật."
         action={
-          user.role === "User" && (
+          user.role !== "Staff" && (
             <Link className="btn btn-primary" to="/tickets/new">
               <Icon name="plus" />
               Tạo yêu cầu mới

@@ -1,6 +1,6 @@
 :root {
   font-family:
-    Inter,
+    "Manrope Variable",
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
@@ -26,7 +26,7 @@
 }
 .muted {
   color: #8390a4;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
 }
 .panel-body {
@@ -64,7 +64,7 @@
   align-items: center;
   gap: 12px;
   color: #8390a4;
-  font-size: 12px;
+  font-size: 14px;
 }
 .pagination > div {
   display: flex;
@@ -77,7 +77,7 @@
 }
 .rating-display {
   color: #e6a52e;
-  font-size: 26px;
+  font-size: 28px;
   margin-bottom: 12px;
 }
 .status-donut {
@@ -207,6 +207,8 @@ button:disabled {
 body {
   margin: 0;
   min-width: 320px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 button,
 input,
@@ -228,12 +230,12 @@ p {
   margin-top: 0;
 }
 h1 {
-  font-size: 26px;
+  font-size: 28px;
   letter-spacing: -0.9px;
   margin-bottom: 8px;
 }
 h3 {
-  font-size: 15px;
+  font-size: 17px;
   letter-spacing: -0.25px;
 }
 p {
@@ -281,7 +283,7 @@ p {
 }
 .brand small {
   display: block;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 1.6px;
   color: #a0aab9;
@@ -289,7 +291,7 @@ p {
 }
 .sidebar-label {
   color: #a2afc0;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 1.5px;
   padding: 0 17px 15px;
@@ -306,7 +308,7 @@ p {
   gap: 13px;
   border-radius: 9px;
   color: #69778d;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   transition: 0.15s;
 }
@@ -342,11 +344,11 @@ p {
   margin-bottom: 10px;
 }
 .help-card strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 .help-card p {
   color: #7c899f;
-  font-size: 11px;
+  font-size: 12px;
   margin: 6px 0 0;
   line-height: 1.6;
 }
@@ -354,7 +356,7 @@ p {
   display: flex;
   justify-content: space-between;
   color: #a3aec0;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
@@ -377,7 +379,7 @@ p {
 }
 .breadcrumb {
   color: #8b98ae;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .breadcrumb span {
@@ -390,7 +392,7 @@ p {
   gap: 22px;
 }
 .system-status {
-  font-size: 11px;
+  font-size: 12px;
   color: #8090a5;
   font-weight: 600;
 }
@@ -433,11 +435,11 @@ p {
   gap: 3px;
 }
 .user-button strong {
-  font-size: 11.5px;
+  font-size: 13px;
   color: #28364e;
 }
 .user-button small {
-  font-size: 10px;
+  font-size: 11px;
   color: #9ca8b6;
 }
 .avatar {
@@ -449,7 +451,7 @@ p {
   place-items: center;
   border-radius: 50%;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 .profile-control {
@@ -475,7 +477,7 @@ p {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 12px;
+  font-size: 14px;
   color: #4c5c74;
   text-align: left;
   border-radius: 7px;
@@ -496,12 +498,12 @@ p {
   margin-bottom: 25px;
 }
 .page-header p {
-  font-size: 12px;
+  font-size: 14px;
   color: #8490a4;
   margin: 0;
 }
 .eyebrow {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   color: #5081ee;
   letter-spacing: 1.4px;
@@ -515,7 +517,7 @@ p {
   justify-content: center;
   gap: 9px;
   padding: 12px 17px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
   transition: all 0.15s;
@@ -539,7 +541,7 @@ p {
 }
 .btn-small {
   padding: 7px 11px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .metric-grid {
   display: grid;
@@ -562,7 +564,7 @@ p {
   align-items: center;
   justify-content: space-between;
   color: #8794a8;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 .metric-icon {
@@ -602,7 +604,7 @@ p {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0;
   font-weight: 700;
   color: #1ca675;
@@ -613,7 +615,7 @@ p {
 .metric-card p {
   color: #a3aebd;
   margin: 0;
-  font-size: 10px;
+  font-size: 11px;
 }
 .dashboard-grid {
   display: grid;
@@ -632,7 +634,7 @@ p {
   margin-bottom: 6px;
 }
 .panel-heading p {
-  font-size: 11px;
+  font-size: 12px;
   color: #a0abba;
   margin: 0;
 }
@@ -641,7 +643,7 @@ p {
   color: #7d8ca3;
   border-radius: 7px;
   padding: 8px 10px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
 }
 .chart-layout {
@@ -669,7 +671,7 @@ p {
 }
 .donut-center span {
   color: #a1adbc;
-  font-size: 11px;
+  font-size: 12px;
 }
 .legend {
   padding: 0 10px;
@@ -679,7 +681,7 @@ p {
   justify-content: space-between;
   align-items: center;
   margin: 20px 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .legend-row span {
   color: #73839b;
@@ -726,11 +728,11 @@ p {
   display: block;
 }
 .quick-item strong {
-  font-size: 11.5px;
+  font-size: 13px;
   margin-bottom: 5px;
 }
 .quick-item small {
-  font-size: 10.5px;
+  font-size: 12px;
   color: #97a4b6;
 }
 .quick-item > svg {
@@ -745,7 +747,7 @@ p {
   align-items: center;
   gap: 11px;
   color: #7f8ba0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .tip-strip svg {
   color: #6390ef;
@@ -758,17 +760,18 @@ p {
   align-items: center;
   gap: 6px;
   color: #4075ed;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 .table-scroll {
+  position: relative;
   overflow-x: auto;
 }
 table {
   border-collapse: collapse;
   width: 100%;
-  min-width: 740px;
-  font-size: 11px;
+  min-width: 780px;
+  font-size: 12px;
 }
 th {
   text-align: left;
@@ -785,6 +788,9 @@ td {
   border-bottom: 1px solid #f0f2f7;
   color: #647288;
 }
+td .muted {
+  font-size: inherit;
+}
 tbody tr:hover {
   background: #fcfdff;
 }
@@ -796,10 +802,10 @@ tbody tr:hover {
 }
 .subtle {
   color: #a0acbb;
-  font-size: 10px;
+  font-size: 11px;
 }
 .ticket-code {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   color: #4077e8;
   white-space: nowrap;
@@ -816,7 +822,7 @@ tbody tr:hover {
   align-items: center;
   border-radius: 6px;
   padding: 6px 9px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
   background: #edf2f8;
@@ -899,7 +905,7 @@ tbody tr:hover {
   padding: 11px 12px;
   color: #4b5b71;
   background: #fff;
-  font-size: 12px;
+  font-size: 14px;
   outline: none;
   width: 100%;
 }
@@ -918,7 +924,7 @@ textarea:focus {
   align-items: center;
   padding: 4px 23px 16px;
   color: #9aa6b5;
-  font-size: 11px;
+  font-size: 12px;
 }
 .table-toolbar > span,
 .table-toolbar > div {
@@ -931,7 +937,7 @@ textarea:focus {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 11px;
+  font-size: 12px;
 }
 .empty {
   text-align: center;
@@ -944,10 +950,10 @@ textarea:focus {
 }
 .empty strong {
   color: #687991;
-  font-size: 13px;
+  font-size: 14px;
 }
 .empty span {
-  font-size: 11px;
+  font-size: 12px;
 }
 .form-grid {
   display: grid;
@@ -971,7 +977,7 @@ textarea:focus {
   margin-bottom: 6px;
 }
 .section-heading p {
-  font-size: 11px;
+  font-size: 12px;
   color: #9ba8b9;
   margin: 0;
 }
@@ -979,7 +985,7 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 9px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   margin-bottom: 21px;
   color: #495973;
@@ -1013,11 +1019,11 @@ textarea:focus {
   margin-bottom: 18px;
 }
 .info-panel h3 {
-  font-size: 15px;
+  font-size: 17px;
 }
 .info-panel p,
 .info-panel li {
-  font-size: 12px;
+  font-size: 14px;
   color: #8390a4;
 }
 .info-panel ul {
@@ -1027,14 +1033,14 @@ textarea:focus {
 .info-note {
   background: #f1f6ff;
   padding: 13px;
-  font-size: 11px;
+  font-size: 12px;
   color: #607695;
   border-radius: 9px;
   margin-top: 22px;
 }
 .detail-top-link {
   color: #6983ac;
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 22px;
 }
 .detail-top-link a {
@@ -1057,8 +1063,14 @@ textarea:focus {
 .side-panel {
   padding: 24px;
 }
+.detail-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
 .description-text {
-  font-size: 12px;
+  font-size: 14px;
   color: #63728a;
   line-height: 1.9;
   margin-bottom: 24px;
@@ -1078,11 +1090,11 @@ textarea:focus {
   flex-direction: column;
 }
 .detail-props span:not(.badge) {
-  font-size: 11px;
+  font-size: 12px;
   color: #a0abba;
 }
 .detail-props strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 .comments {
   display: grid;
@@ -1093,7 +1105,7 @@ textarea:focus {
   color: #98a4b5;
   text-align: center;
   padding: 35px 0;
-  font-size: 12px;
+  font-size: 14px;
 }
 .comment {
   display: flex;
@@ -1109,10 +1121,10 @@ textarea:focus {
   gap: 10px;
 }
 .comment-meta strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 .comment-meta span {
-  font-size: 10px;
+  font-size: 11px;
   color: #a1acbb;
 }
 .comment-content p {
@@ -1120,7 +1132,7 @@ textarea:focus {
   padding: 12px;
   border-radius: 9px;
   color: #61728d;
-  font-size: 12px;
+  font-size: 14px;
   margin: 8px 0 0;
 }
 .comment-form {
@@ -1139,7 +1151,7 @@ textarea:focus {
   margin-top: 12px;
 }
 .comment-form span {
-  font-size: 10px;
+  font-size: 11px;
   color: #a7b1c2;
 }
 .timeline {
@@ -1173,11 +1185,11 @@ textarea:focus {
   display: block;
 }
 .timeline-item strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 .timeline-item span,
 .timeline-item p {
-  font-size: 11px;
+  font-size: 12px;
   color: #9eabbc;
   margin-top: 5px;
 }
@@ -1197,12 +1209,12 @@ textarea:focus {
   display: block;
 }
 .person-row small {
-  font-size: 10px;
+  font-size: 11px;
   color: #a2aebf;
   margin-bottom: 4px;
 }
 .person-row strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 .staff-avatar {
   background: #eaf7f2;
@@ -1216,7 +1228,7 @@ textarea:focus {
   display: flex;
   gap: 9px;
   align-items: center;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
   color: #9ca8b9;
   padding: 0 6px;
@@ -1255,7 +1267,7 @@ textarea:focus {
   background: transparent;
   padding: 9px 12px;
   color: #8c9bb0;
-  font-size: 11px;
+  font-size: 12px;
   border-radius: 8px;
 }
 .tab-pills button.selected {
@@ -1270,10 +1282,10 @@ textarea:focus {
   color: #607089;
   max-width: 200px;
   background: #fff;
-  font-size: 11px;
+  font-size: 12px;
 }
 .status-text {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 .is-active {
@@ -1299,12 +1311,12 @@ textarea:focus {
   border-top: 1px solid #f0f2f5;
 }
 .category-row strong {
-  font-size: 12px;
+  font-size: 14px;
   flex: 1;
 }
 .category-row > span:nth-last-child(2) {
   color: #9ca8b8;
-  font-size: 11px;
+  font-size: 12px;
 }
 .category-symbol {
   width: 32px;
@@ -1319,7 +1331,7 @@ textarea:focus {
   padding: 24px;
 }
 .category-edit > p {
-  font-size: 11px;
+  font-size: 12px;
   color: #98a4b5;
 }
 .category-edit form {
@@ -1348,7 +1360,7 @@ textarea:focus {
   align-items: center;
   gap: 10px;
   margin: 20px 0;
-  font-size: 11px;
+  font-size: 12px;
   color: #6b7a92;
 }
 .status-report-row strong {
@@ -1385,14 +1397,14 @@ textarea:focus {
   font-size: 17px;
 }
 .profile-preview p {
-  font-size: 12px;
+  font-size: 14px;
   color: #8fa0b6;
 }
 .role-chip {
   padding: 8px 15px;
   color: #4279e9;
   background: #ecf3ff;
-  font-size: 11px;
+  font-size: 12px;
   border-radius: 20px;
   font-weight: 700;
 }
@@ -1428,7 +1440,7 @@ textarea:focus {
   box-shadow: 0 10px 30px #24395c35;
   padding: 15px 21px;
   border-radius: 11px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .hamburger,
 .mobile-close,
@@ -1513,7 +1525,7 @@ textarea:focus {
   align-items: center;
   gap: 11px;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 14px;
 }
 .floating-top svg:first-child {
   color: #447ce7;
@@ -1539,7 +1551,7 @@ textarea:focus {
   margin-top: 25px;
 }
 .floating-pills span {
-  font-size: 10px;
+  font-size: 11px;
   background: #f0edff;
   color: #8262d5;
   padding: 9px;
@@ -1560,7 +1572,7 @@ textarea:focus {
   padding: 14px 16px;
   border-radius: 10px;
   box-shadow: 0 14px 35px #09296142;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   bottom: 20px;
   right: 2%;
@@ -1571,7 +1583,7 @@ textarea:focus {
   margin: auto 0 0;
 }
 .auth-kicker {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 2px;
   font-weight: 800;
   color: #a6c5ff;
@@ -1584,7 +1596,7 @@ textarea:focus {
   margin-bottom: 19px;
 }
 .auth-pitch p {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.9;
   color: #c4d9ff;
   max-width: 400px;
@@ -1594,7 +1606,7 @@ textarea:focus {
   gap: 26px;
   margin-top: 25px;
   color: #e2edff;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
 }
 .auth-features span {
@@ -1603,7 +1615,7 @@ textarea:focus {
   gap: 7px;
 }
 .auth-copyright {
-  font-size: 10px;
+  font-size: 11px;
   color: #a6c5ff;
   margin-top: 43px;
 }
@@ -1619,7 +1631,7 @@ textarea:focus {
 .auth-mini-label {
   display: block;
   color: #4978e3;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 2px;
   margin-bottom: 17px;
@@ -1629,7 +1641,7 @@ textarea:focus {
 }
 .auth-welcome p {
   color: #96a2b6;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.8;
   margin-bottom: 30px;
 }
@@ -1638,7 +1650,7 @@ textarea:focus {
   gap: 21px;
 }
 .auth-form > label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: #374b6b;
 }
@@ -1658,7 +1670,7 @@ textarea:focus {
   padding: 15px 48px;
   border: 1px solid #e2e8f2;
   border-radius: 9px;
-  font-size: 12px;
+  font-size: 14px;
   color: #425473;
   outline: none;
 }
@@ -1685,7 +1697,7 @@ textarea:focus {
 }
 .auth-switch {
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;
   margin: 23px 0 25px;
   color: #8899af;
 }
@@ -1704,13 +1716,13 @@ textarea:focus {
   gap: 7px;
   align-items: center;
   color: #4778db;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 1px;
   font-weight: 800;
 }
 .demo-box p {
   color: #8e9db2;
-  font-size: 11px;
+  font-size: 12px;
   margin: 8px 0 12px;
 }
 .demo-box p strong {
@@ -1736,19 +1748,19 @@ textarea:focus {
 }
 .demo-accounts span {
   color: #485c7b;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 .demo-accounts small {
   color: #9aa9ba;
-  font-size: 10px;
+  font-size: 11px;
 }
 .form-error {
   padding: 10px 13px;
   border-radius: 8px;
   background: #fff0f0;
   color: #cb4e58;
-  font-size: 11px;
+  font-size: 12px;
 }
 @media (max-width: 1150px) {
   .sidebar {
@@ -1858,12 +1870,10 @@ textarea:focus {
     align-items: flex-start;
   }
   .page-header h1 {
-    font-size: 22px;
+    font-size: 24px;
   }
   .page-header .btn {
-    padding: 11px;
-    font-size: 0;
-    gap: 0;
+    padding: 10px 13px;
   }
   .page-header .btn svg {
     width: 19px;
@@ -1901,9 +1911,13 @@ textarea:focus {
   .filter-bar {
     padding: 15px;
   }
+  .filter-bar .search-field {
+    flex-basis: 100%;
+    min-width: 0;
+  }
   .filter-bar select {
     max-width: none;
-    flex: 1;
+    flex: 1 1 140px;
   }
   .auth-right {
     padding: 32px 21px;

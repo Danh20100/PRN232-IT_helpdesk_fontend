@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
+import TicketForm from "../TicketForm";
 import {
   Avatar,
   Err,
@@ -34,6 +35,7 @@ export default function TicketDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const [t, setT] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [comments, setComments] = useState([]);
   const [history, setHistory] = useState([]);
   const [feedback, setFeedback] = useState(null);
@@ -65,6 +67,7 @@ export default function TicketDetail() {
   useEffect(() => {
     let active = true;
     setT(null);
+    setEditingId(null);
     setErr("");
     setStaffId("");
     setDue("");
@@ -153,6 +156,15 @@ export default function TicketDetail() {
     );
   const actions = actionsFor(t, user);
   const closed = ["Closed", "Cancelled"].includes(t.status);
+  const canEdit =
+    user.role !== "Staff" && t.createdById === user.userId && t.status === "Open";
+  const saveTicket = async (fields) => {
+    const saved = await api(`/tickets/${id}`, { method: "PUT", body: fields });
+    if (saved) {
+      setT((current) => (current?.id === saved.id ? saved : current));
+      setEditingId((current) => (current === saved.id ? null : current));
+    }
+  };
   return (
     <>
       <div className="detail-top-link">
@@ -175,28 +187,57 @@ export default function TicketDetail() {
       <Err msg={err} />
       <div className="detail-grid">
         <div className="detail-main">
-          <section className="panel detail-section">
-            <h3>Thông tin yêu cầu</h3>
-            <p className="description-text">{t.description}</p>
-            <div className="detail-props">
-              <div>
-                <span>Danh mục sự cố</span>
-                <strong>{t.category}</strong>
+          {canEdit && editingId === t.id ? (
+            <TicketForm
+              key={t.id}
+              ticket={t}
+              onSave={saveTicket}
+              cancel={(saving) => (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={saving}
+                  onClick={() => setEditingId(null)}
+                >
+                  Hủy bỏ
+                </button>
+              )}
+            />
+          ) : (
+            <section className="panel detail-section">
+              <div className="detail-section-heading">
+                <h3>Thông tin yêu cầu</h3>
+                {canEdit && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setEditingId(t.id)}
+                  >
+                    Chỉnh sửa
+                  </button>
+                )}
               </div>
-              <div>
-                <span>Hạn xử lý</span>
-                <strong>{fmt(t.dueDate)}</strong>
+              <p className="description-text">{t.description}</p>
+              <div className="detail-props">
+                <div>
+                  <span>Danh mục sự cố</span>
+                  <strong>{t.category}</strong>
+                </div>
+                <div>
+                  <span>Hạn xử lý</span>
+                  <strong>{fmt(t.dueDate)}</strong>
+                </div>
+                <div>
+                  <span>Mức độ ưu tiên</span>
+                  <PriorityBadge p={t.priority} />
+                </div>
+                <div>
+                  <span>Trạng thái</span>
+                  <StatusBadge s={t.status} />
+                </div>
               </div>
-              <div>
-                <span>Mức độ ưu tiên</span>
-                <PriorityBadge p={t.priority} />
-              </div>
-              <div>
-                <span>Trạng thái</span>
-                <StatusBadge s={t.status} />
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
           <section className="panel detail-section">
             <h3>
               Trao đổi <span className="muted">({comments.length})</span>

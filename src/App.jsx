@@ -32,7 +32,7 @@ function Layout() {
       icon: "ticket",
       text: user.role === "Staff" ? "Ticket được giao" : "Quản lý Ticket",
     },
-    ...(user.role === "User"
+    ...(user.role !== "Staff"
       ? [{ to: "/tickets/new", icon: "plus", text: "Tạo yêu cầu" }]
       : []),
     ...(user.role === "Admin"
@@ -168,7 +168,7 @@ export default function App() {
           <Route
             path="tickets/new"
             element={
-              <Protected roles={["User"]}>
+              <Protected roles={["User", "Admin"]}>
                 <NewTicket />
               </Protected>
             }

@@ -134,7 +134,7 @@ export default function Dashboard() {
             : "Theo dõi tiến độ các yêu cầu hỗ trợ của bạn một cách dễ dàng."
         }
         action={
-          user.role === "User" && (
+          user.role !== "Staff" && (
             <Link className="btn btn-primary" to="/tickets/new">
               <Icon name="plus" />
               Tạo yêu cầu mới

@@ -1,44 +1,41 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
-import { Err, Icon, PageHeader, PRIORITY_LABEL } from "../ui";
+import { useAuth } from "../auth";
+import TicketForm from "../TicketForm";
+import { Err, Icon, PageHeader } from "../ui";
 
 export default function NewTicket() {
   const nav = useNavigate();
-  const [cats, setCats] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [f, setF] = useState({
-    title: "",
-    description: "",
-    categoryId: "",
-    priority: "Medium",
-  });
-  const [err, setErr] = useState("");
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const { user } = useAuth();
+  const canAssign = user.role === "Admin";
+  const [staff, setStaff] = useState(null);
+  const [staffId, setStaffId] = useState("");
+  const [staffError, setStaffError] = useState("");
+
   useEffect(() => {
-    api("/categories")
-      .then((v) => setCats(v || []))
-      .catch((e) => setErr(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-  const submit = async (e) => {
-    e.preventDefault();
-    if (busy) return;
-    setErr("");
-    setBusy(true);
-    try {
-      const t = await api("/tickets", {
-        method: "POST",
-        body: { ...f, categoryId: +f.categoryId },
+    if (!canAssign) return;
+    let active = true;
+    api("/users/support-staff")
+      .then((items) => {
+        if (active) setStaff(items || []);
+      })
+      .catch((e) => {
+        if (active) setStaffError(e.message);
       });
-      if (t) nav(`/tickets/${t.id}`);
-    } catch (ex) {
-      setErr(ex.message);
-    } finally {
-      setBusy(false);
-    }
+    return () => {
+      active = false;
+    };
+  }, [canAssign]);
+
+  const save = async (fields) => {
+    const ticket = await api("/tickets", {
+      method: "POST",
+      body: canAssign && staffId ? { ...fields, staffId: Number(staffId) } : fields,
+    });
+    if (ticket) nav(`/tickets/${ticket.id}`);
   };
+
   return (
     <>
       <PageHeader
@@ -47,81 +44,37 @@ export default function NewTicket() {
         description="Cho chúng tôi biết vấn đề bạn đang gặp phải. Đội ngũ IT sẽ hỗ trợ bạn."
       />
       <div className="form-grid">
-        <form className="panel ticket-form" onSubmit={submit}>
-          <div className="section-heading">
-            <h3>
-              <Icon name="ticket" />
-              Thông tin yêu cầu
-            </h3>
-            <p>Điền đầy đủ thông tin để yêu cầu được xử lý nhanh chóng.</p>
-          </div>
-          <Err msg={err} />
-          <label className="form-label">
-            Tiêu đề yêu cầu *
-            <input
-              placeholder="Ví dụ: Không thể kết nối Wi-Fi văn phòng"
-              value={f.title}
-              onChange={set("title")}
-              required
-            />
-          </label>
-          <div className="two-cols">
-            <label className="form-label">
-              Danh mục sự cố *
-              <select
-                value={f.categoryId}
-                onChange={set("categoryId")}
-                required
-                disabled={loading}
-              >
-                <option value="">
-                  {loading ? "Đang tải danh mục…" : "Chọn danh mục"}
-                </option>
-                {cats
-                  .filter((c) => c.isActive !== false)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label className="form-label">
-              Mức độ ưu tiên
-              <select value={f.priority} onChange={set("priority")}>
-                {Object.entries(PRIORITY_LABEL).map(([p, label]) => (
-                  <option value={p} key={p}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <label className="form-label">
-            Mô tả chi tiết *
-            <textarea
-              rows="8"
-              placeholder="Mô tả sự cố, thời điểm xảy ra và những bước bạn đã thử…"
-              value={f.description}
-              onChange={set("description")}
-              required
-            />
-          </label>
-          <div className="form-actions">
+        <TicketForm
+          onSave={save}
+          cancel={() => (
             <Link className="btn btn-secondary" to="/tickets">
               Hủy bỏ
             </Link>
-            <button
-              className="btn btn-primary"
-              disabled={
-                busy || loading || !cats.some((c) => c.isActive !== false)
-              }
-            >
-              <Icon name="plus" size={17} />
-              {busy ? "Đang gửi…" : "Gửi yêu cầu"}
-            </button>
-          </div>
-        </form>
+          )}
+        >
+          {(busy) => canAssign && (
+            <>
+              <Err msg={staffError} />
+              <label className="form-label">
+                Nhân viên xử lý
+                <select
+                  value={staffId}
+                  disabled={busy || !staff?.length}
+                  onChange={(e) => setStaffId(e.target.value)}
+                >
+                  <option value="">
+                    {staff || staffError ? "Chưa phân công" : "Đang tải nhân viên…"}
+                  </option>
+                  {staff?.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.fullName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+        </TicketForm>
         <aside className="panel info-panel">
           <div className="info-round">
             <Icon name="help" size={24} />

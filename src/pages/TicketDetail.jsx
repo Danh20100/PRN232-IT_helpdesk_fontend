@@ -1,19 +1,32 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { api } from '../api';
-import { useAuth } from '../auth';
-import { Err, PriorityBadge, StatusBadge, fmt } from '../ui';
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { api } from "../api";
+import { useAuth } from "../auth";
+import {
+  Avatar,
+  Err,
+  Icon,
+  Loading,
+  PageHeader,
+  PriorityBadge,
+  StatusBadge,
+  fmt,
+  PRIORITY_LABEL,
+  STATUS_LABEL,
+} from "../ui";
 
-// Các nút chuyển trạng thái hiển thị cho user hiện tại (backend vẫn kiểm tra lại)
+// Backend vẫn xác thực quyền và các bước chuyển trạng thái.
 function actionsFor(t, me) {
-  const staff = me.role === 'Staff' && t.assignedToId === me.userId;
+  const staff = me.role === "Staff" && t.assignedToId === me.userId;
   const owner = t.createdById === me.userId;
   const a = [];
-  if (staff && t.status === 'Open') a.push(['InProgress', 'Bắt đầu xử lý']);
-  if (staff && t.status === 'InProgress') a.push(['Pending', 'Chờ phản hồi'], ['Resolved', 'Đã xử lý xong']);
-  if (staff && t.status === 'Pending') a.push(['InProgress', 'Tiếp tục xử lý']);
-  if (owner && t.status === 'Resolved') a.push(['Closed', 'Xác nhận đã hết lỗi'], ['InProgress', 'Vẫn còn lỗi']);
-  if (owner && t.status === 'Open') a.push(['Cancelled', 'Hủy yêu cầu']);
+  if (staff && t.status === "Open") a.push(["InProgress", "Bắt đầu xử lý"]);
+  if (staff && t.status === "InProgress")
+    a.push(["Pending", "Chờ phản hồi"], ["Resolved", "Đã xử lý xong"]);
+  if (staff && t.status === "Pending") a.push(["InProgress", "Tiếp tục xử lý"]);
+  if (owner && t.status === "Resolved")
+    a.push(["Closed", "Xác nhận đã hết lỗi"], ["InProgress", "Vẫn còn lỗi"]);
+  if (owner && t.status === "Open") a.push(["Cancelled", "Hủy yêu cầu"]);
   return a;
 }
 
@@ -25,130 +38,404 @@ export default function TicketDetail() {
   const [history, setHistory] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const [staff, setStaff] = useState([]);
-  const [note, setNote] = useState('');
-  const [text, setText] = useState('');
-  const [staffId, setStaffId] = useState('');
-  const [due, setDue] = useState('');
-  const [fb, setFb] = useState({ rating: 5, comment: '' });
-  const [err, setErr] = useState('');
-
-  const load = async () => {
-    try {
-      setT(await api(`/tickets/${id}`));
-      setComments(await api(`/tickets/${id}/comments`));
-      setHistory(await api(`/tickets/${id}/history`));
-      setFeedback(await api(`/tickets/${id}/feedback`).catch(() => null));
-      if (user.role === 'Admin') setStaff(await api('/users/support-staff'));
-    } catch (e) { setErr(e.message); }
+  const [note, setNote] = useState("");
+  const [text, setText] = useState("");
+  const [staffId, setStaffId] = useState("");
+  const [due, setDue] = useState("");
+  const [fb, setFb] = useState({ rating: 5, comment: "" });
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const fetchDetail = async () => {
+    const [ticket, c, h, f, s] = await Promise.all([
+      api(`/tickets/${id}`),
+      api(`/tickets/${id}/comments`),
+      api(`/tickets/${id}/history`),
+      api(`/tickets/${id}/feedback`).catch(() => null),
+      user.role === "Admin" ? api("/users/support-staff") : Promise.resolve([]),
+    ]);
+    return { ticket, c, h, f, s };
   };
-  useEffect(() => { load(); }, [id]);
-
+  const apply = ({ ticket, c, h, f, s }) => {
+    setT(ticket);
+    setComments(c || []);
+    setHistory(h || []);
+    setFeedback(f);
+    setStaff(s || []);
+  };
+  useEffect(() => {
+    let active = true;
+    setT(null);
+    setErr("");
+    setStaffId("");
+    setDue("");
+    setNote("");
+    setText("");
+    fetchDetail()
+      .then((v) => {
+        if (active) apply(v);
+      })
+      .catch((e) => {
+        if (active) setErr(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, user.role]);
   const run = async (fn) => {
-    setErr('');
-    try { await fn(); await load(); } catch (e) { setErr(e.message); }
+    if (busy) return;
+    setErr("");
+    setBusy(true);
+    try {
+      await fn();
+      apply(await fetchDetail());
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
   };
-
-  const changeStatus = (status) =>
-    run(async () => { await api(`/tickets/${id}/status`, { method: 'PATCH', body: { status, note: note || null } }); setNote(''); });
+  const changeStatus = (status) => {
+    if (status === "Resolved" && !note.trim()) {
+      setErr("Vui lòng nhập ghi chú xử lý trước khi hoàn tất yêu cầu.");
+      return;
+    }
+    run(async () => {
+      await api(`/tickets/${id}/status`, {
+        method: "PATCH",
+        body: { status, note: note || null },
+      });
+      setNote("");
+    });
+  };
   const addComment = (e) => {
     e.preventDefault();
-    run(async () => { await api(`/tickets/${id}/comments`, { method: 'POST', body: { content: text } }); setText(''); });
+    if (!text.trim()) return;
+    run(async () => {
+      await api(`/tickets/${id}/comments`, {
+        method: "POST",
+        body: { content: text },
+      });
+      setText("");
+    });
   };
-  const assign = () =>
-    run(() => api(`/tickets/${id}/assign`, { method: 'PATCH', body: { staffId: +staffId, dueDate: due ? new Date(due).toISOString() : null } }));
-  const setPriority = (priority) =>
-    run(() => api(`/tickets/${id}/priority`, { method: 'PATCH', body: { priority } }));
+  const assign = (e) => {
+    e.preventDefault();
+    run(() =>
+      api(`/tickets/${id}/assign`, {
+        method: "PATCH",
+        body: {
+          staffId: +staffId,
+          dueDate: due ? new Date(due).toISOString() : null,
+        },
+      }),
+    );
+  };
   const sendFeedback = (e) => {
     e.preventDefault();
-    run(() => api(`/tickets/${id}/feedback`, { method: 'POST', body: { rating: +fb.rating, comment: fb.comment || null } }));
+    run(() =>
+      api(`/tickets/${id}/feedback`, {
+        method: "POST",
+        body: { rating: +fb.rating, comment: fb.comment || null },
+      }),
+    );
   };
-
-  if (!t) return <><Err msg={err} />{!err && <p>Đang tải...</p>}</>;
+  if (!t)
+    return (
+      <>
+        <div className="detail-top-link">
+          <Link to="/tickets">
+            <Icon name="back" size={16} />
+            Quay lại danh sách
+          </Link>
+        </div>
+        {err ? <Err msg={err} /> : <Loading />}
+      </>
+    );
   const actions = actionsFor(t, user);
-  const closed = t.status === 'Closed' || t.status === 'Cancelled';
-
+  const closed = ["Closed", "Cancelled"].includes(t.status);
   return (
     <>
+      <div className="detail-top-link">
+        <Link to="/tickets">
+          <Icon name="back" size={16} />
+          Quay lại danh sách ticket
+        </Link>
+      </div>
+      <PageHeader
+        eyebrow={`TICKET / ${t.code}`}
+        title={t.title}
+        description={`Tạo lúc ${fmt(t.createdAt)}`}
+        action={
+          <div className="badge-group">
+            <StatusBadge s={t.status} />
+            <PriorityBadge p={t.priority} />
+          </div>
+        }
+      />
       <Err msg={err} />
-      <div className="card">
-        <div className="row">
-          <h2>{t.code} — {t.title}</h2>
-          <span className="spacer" />
-          <StatusBadge s={t.status} /> <PriorityBadge p={t.priority} />
-        </div>
-        <p style={{ whiteSpace: 'pre-wrap' }}>{t.description}</p>
-        <p className="muted">
-          Danh mục: {t.category} · Người tạo: {t.createdBy} · Người xử lý: {t.assignedTo || 'chưa phân công'} ·
-          Tạo lúc: {fmt(t.createdAt)} · Hạn: {fmt(t.dueDate)}
-        </p>
-
-        {actions.length > 0 && (
-          <div className="row">
-            <input placeholder="Ghi chú (bắt buộc khi Resolved)" value={note} onChange={(e) => setNote(e.target.value)} />
-            {actions.map(([s, label]) => <button key={label} className="primary" onClick={() => changeStatus(s)}>{label}</button>)}
-          </div>
-        )}
-      </div>
-
-      {user.role === 'Admin' && !closed && (
-        <div className="card">
-          <h3>Admin: phân công / ưu tiên</h3>
-          <div className="row">
-            <select value={staffId} onChange={(e) => setStaffId(e.target.value)}>
-              <option value="">-- Chọn Staff --</option>
-              {staff.map((s) => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-            </select>
-            <input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
-            <button className="primary" disabled={!staffId} onClick={assign}>Phân công</button>
-            <select value={t.priority} onChange={(e) => setPriority(e.target.value)}>
-              {['Low', 'Medium', 'High', 'Critical'].map((p) => <option key={p}>{p}</option>)}
-            </select>
-          </div>
-        </div>
-      )}
-
-      <div className="grid2">
-        <div className="card">
-          <h3>Trao đổi</h3>
-          {comments.map((c) => (
-            <div key={c.id} className="comment"><b>{c.userName}</b> <span className="muted">{fmt(c.createdAt)}</span><div>{c.content}</div></div>
-          ))}
-          {comments.length === 0 && <p className="muted">Chưa có bình luận.</p>}
-          {!closed && (
-            <form className="row" onSubmit={addComment}>
-              <input placeholder="Viết bình luận..." value={text} onChange={(e) => setText(e.target.value)} required />
-              <button className="primary">Gửi</button>
-            </form>
+      <div className="detail-grid">
+        <div className="detail-main">
+          <section className="panel detail-section">
+            <h3>Thông tin yêu cầu</h3>
+            <p className="description-text">{t.description}</p>
+            <div className="detail-props">
+              <div>
+                <span>Danh mục sự cố</span>
+                <strong>{t.category}</strong>
+              </div>
+              <div>
+                <span>Hạn xử lý</span>
+                <strong>{fmt(t.dueDate)}</strong>
+              </div>
+              <div>
+                <span>Mức độ ưu tiên</span>
+                <PriorityBadge p={t.priority} />
+              </div>
+              <div>
+                <span>Trạng thái</span>
+                <StatusBadge s={t.status} />
+              </div>
+            </div>
+          </section>
+          <section className="panel detail-section">
+            <h3>
+              Trao đổi <span className="muted">({comments.length})</span>
+            </h3>
+            <div className="comments">
+              {comments.map((c) => (
+                <div className="comment" key={c.id}>
+                  <Avatar name={c.userName} />
+                  <div className="comment-content">
+                    <div className="comment-meta">
+                      <strong>{c.userName}</strong>
+                      <span>{fmt(c.createdAt)}</span>
+                    </div>
+                    <p className="preserve-text">{c.content}</p>
+                  </div>
+                </div>
+              ))}
+              {!comments.length && (
+                <div className="comments-empty">
+                  Chưa có bình luận. Bắt đầu trao đổi tại đây.
+                </div>
+              )}
+            </div>
+            {!closed && (
+              <form className="comment-form" onSubmit={addComment}>
+                <label className="sr-only" htmlFor="comment">
+                  Nội dung bình luận
+                </label>
+                <textarea
+                  id="comment"
+                  rows="3"
+                  placeholder="Viết bình luận hoặc cập nhật thông tin…"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  required
+                />
+                <div>
+                  <span>
+                    Trao đổi trực tiếp với người tham gia xử lý yêu cầu.
+                  </span>
+                  <button
+                    className="btn btn-primary"
+                    disabled={busy || !text.trim()}
+                  >
+                    Gửi bình luận
+                    <Icon name="arrow" size={16} />
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+          <section className="panel detail-section">
+            <h3>Lịch sử trạng thái</h3>
+            <div className="timeline">
+              {history.map((h, i) => (
+                <div className="timeline-item" key={i}>
+                  <span className="timeline-marker" />
+                  <div>
+                    <strong>
+                      {STATUS_LABEL[h.oldStatus] || h.oldStatus || "Khởi tạo"} →{" "}
+                      {STATUS_LABEL[h.newStatus] || h.newStatus}
+                    </strong>
+                    <span>
+                      {h.changedBy} · {fmt(h.changedAt)}
+                    </span>
+                    {h.note && <p className="preserve-text">{h.note}</p>}
+                  </div>
+                </div>
+              ))}
+              {!history.length && (
+                <p className="muted">Chưa có thay đổi trạng thái.</p>
+              )}
+            </div>
+          </section>
+          {(feedback ||
+            (t.status === "Closed" && t.createdById === user.userId)) && (
+            <section className="panel detail-section">
+              <h3>Đánh giá chất lượng hỗ trợ</h3>
+              {feedback ? (
+                <>
+                  <div
+                    className="rating-display"
+                    aria-label={`${feedback.rating} trên 5 sao`}
+                  >
+                    {"★".repeat(feedback.rating)}
+                    {"☆".repeat(5 - feedback.rating)}
+                  </div>
+                  <p className="description-text">
+                    {feedback.comment || "Cảm ơn bạn đã đánh giá!"}
+                  </p>
+                </>
+              ) : (
+                <form onSubmit={sendFeedback}>
+                  <div
+                    className="rating-picker"
+                    role="group"
+                    aria-label="Điểm đánh giá"
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        type="button"
+                        key={n}
+                        className={n <= fb.rating ? "star-selected" : ""}
+                        aria-label={`${n} sao`}
+                        aria-pressed={fb.rating === n}
+                        onClick={() => setFb({ ...fb, rating: n })}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                  <label className="form-label">
+                    Nhận xét
+                    <textarea
+                      rows="3"
+                      value={fb.comment}
+                      onChange={(e) =>
+                        setFb({ ...fb, comment: e.target.value })
+                      }
+                      placeholder="Chia sẻ trải nghiệm hỗ trợ của bạn…"
+                    />
+                  </label>
+                  <button className="btn btn-primary" disabled={busy}>
+                    Gửi đánh giá
+                  </button>
+                </form>
+              )}
+            </section>
           )}
         </div>
-
-        <div className="card">
-          <h3>Lịch sử trạng thái</h3>
-          <table><tbody>
-            {history.map((h, i) => (
-              <tr key={i}><td>{fmt(h.changedAt)}</td><td>{h.changedBy}</td><td>{h.oldStatus} → {h.newStatus}</td><td>{h.note}</td></tr>
-            ))}
-            {history.length === 0 && <tr><td className="muted">Chưa có thay đổi.</td></tr>}
-          </tbody></table>
-        </div>
-      </div>
-
-      {(feedback || (t.status === 'Closed' && t.createdById === user.userId)) && (
-        <div className="card">
-          <h3>Đánh giá</h3>
-          {feedback ? (
-            <p>{'★'.repeat(feedback.rating)}{'☆'.repeat(5 - feedback.rating)} {feedback.comment}</p>
-          ) : (
-            <form className="row" onSubmit={sendFeedback}>
-              <select value={fb.rating} onChange={(e) => setFb({ ...fb, rating: e.target.value })}>
-                {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} sao</option>)}
-              </select>
-              <input placeholder="Nhận xét" value={fb.comment} onChange={(e) => setFb({ ...fb, comment: e.target.value })} />
-              <button className="primary">Gửi đánh giá</button>
-            </form>
+        <aside className="detail-side">
+          <section className="panel side-panel">
+            <h3>Người tham gia</h3>
+            <div className="person-row">
+              <Avatar name={t.createdBy} />
+              <div>
+                <small>Người tạo yêu cầu</small>
+                <strong>{t.createdBy}</strong>
+              </div>
+            </div>
+            <div className="person-row">
+              <Avatar name={t.assignedTo || "IT"} className="staff-avatar" />
+              <div>
+                <small>Nhân viên xử lý</small>
+                <strong>{t.assignedTo || "Chưa phân công"}</strong>
+              </div>
+            </div>
+          </section>
+          {actions.length > 0 && (
+            <section className="panel side-panel">
+              <h3>Cập nhật tiến độ</h3>
+              <label className="form-label">
+                Ghi chú xử lý
+                <textarea
+                  rows="3"
+                  placeholder="Bắt buộc khi hoàn tất xử lý"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+              </label>
+              <div className="action-stack">
+                {actions.map(([s, label]) => (
+                  <button
+                    key={s}
+                    className={`btn ${s === "Cancelled" ? "btn-secondary" : "btn-primary"}`}
+                    disabled={busy}
+                    onClick={() => changeStatus(s)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </section>
           )}
-        </div>
-      )}
+          {user.role === "Admin" && !closed && (
+            <section className="panel side-panel">
+              <h3>Phân công & ưu tiên</h3>
+              <form onSubmit={assign}>
+                <label className="form-label">
+                  Nhân viên IT
+                  <select
+                    value={staffId}
+                    onChange={(e) => setStaffId(e.target.value)}
+                    required
+                  >
+                    <option value="">Chọn nhân viên</option>
+                    {staff.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="form-label">
+                  Hạn xử lý
+                  <input
+                    type="datetime-local"
+                    value={due}
+                    onChange={(e) => setDue(e.target.value)}
+                  />
+                </label>
+                <button
+                  className="btn btn-primary full-btn"
+                  disabled={busy || !staffId}
+                >
+                  Phân công ticket
+                </button>
+              </form>
+              <label className="form-label priority-control">
+                Mức độ ưu tiên
+                <select
+                  value={t.priority}
+                  disabled={busy}
+                  onChange={(e) =>
+                    run(() =>
+                      api(`/tickets/${id}/priority`, {
+                        method: "PATCH",
+                        body: { priority: e.target.value },
+                      }),
+                    )
+                  }
+                >
+                  {Object.entries(PRIORITY_LABEL).map(([p, label]) => (
+                    <option key={p} value={p}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+          )}
+          <div className="detail-tip">
+            <Icon name="help" size={24} />
+            <span>
+              Mọi thay đổi trạng thái đều được ghi lại để bạn dễ dàng theo dõi.
+            </span>
+          </div>
+        </aside>
+      </div>
     </>
   );
 }

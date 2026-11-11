@@ -11,7 +11,7 @@ export default function TicketForm({ ticket, onSave, cancel, children }) {
     title: ticket?.title ?? "",
     description: ticket?.description ?? "",
     categoryId: ticket?.categoryId,
-    priority: ticket?.priority ?? "Medium",
+    priority: ticket ? (ticket.priority ?? "Medium") : "",
   });
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function TicketForm({ ticket, onSave, cancel, children }) {
         title,
         description,
         categoryId: Number(categoryId),
-        priority: fields.priority,
+        priority: fields.priority || undefined,
       });
     } catch (e) {
       setError(e.message);
@@ -112,6 +112,7 @@ export default function TicketForm({ ticket, onSave, cancel, children }) {
         <label className="form-label">
           Mức độ ưu tiên
           <select value={fields.priority} onChange={set("priority")} disabled={busy}>
+            {!ticket && <option value="">Tự động theo danh mục</option>}
             {Object.entries(PRIORITY_LABEL).map(([p, label]) => (
               <option value={p} key={p}>
                 {label}

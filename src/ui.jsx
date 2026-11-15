@@ -54,6 +54,7 @@ const paths = {
   search: "m21 21-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z",
   chevron: "m6 9 6 6 6-6",
   back: "M19 12H5m6-6-6 6 6 6",
+  bell: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0",
 };
 export function Icon({ name, size = 19, ...props }) {
   return (

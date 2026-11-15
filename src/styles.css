@@ -431,6 +431,7 @@ p {
   text-align: left;
   gap: 9px;
   color: #5c6a81;
+  text-decoration: none;
 }
 .user-button > span:not(.avatar) {
   display: flex;

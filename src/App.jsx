@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Link,
   NavLink,
@@ -9,8 +9,9 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+import { api } from "./api";
 import { useAuth } from "./auth";
-import { Avatar, Icon, ROLE_LABEL } from "./ui";
+import { Avatar, Icon, ROLE_LABEL, fmt } from "./ui";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Tickets from "./pages/Tickets";
@@ -18,6 +19,163 @@ import NewTicket from "./pages/NewTicket";
 import TicketDetail from "./pages/TicketDetail";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
+
+function NotificationBell() {
+  const nav = useNavigate();
+  const location = useLocation();
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState({ unreadCount: 0, items: [] });
+  const [busy, setBusy] = useState(false);
+  const wrapRef = useRef(null);
+
+  const load = useCallback(() => {
+    api("/notifications?take=30")
+      .then((res) => {
+        if (res && Array.isArray(res.items)) setData(res);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load, location.pathname]);
+
+  useEffect(() => {
+    const timer = setInterval(load, 10000);
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [load]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  const handleToggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) load();
+  };
+
+  const handleSelect = async (n) => {
+    if (!n.isRead) {
+      setData((prev) => ({
+        unreadCount: Math.max(0, prev.unreadCount - 1),
+        items: prev.items.map((x) =>
+          x.id === n.id ? { ...x, isRead: true } : x,
+        ),
+      }));
+      api(`/notifications/${n.id}/read`, { method: "PATCH" }).catch(
+        () => {},
+      );
+    }
+    setOpen(false);
+    if (n.ticketId) nav(`/tickets/${n.ticketId}`);
+  };
+
+  const handleReadAll = async () => {
+    if (!data.unreadCount || busy) return;
+    setBusy(true);
+    try {
+      await api("/notifications/read-all", { method: "PATCH" });
+      setData((prev) => ({
+        unreadCount: 0,
+        items: prev.items.map((x) => ({ ...x, isRead: true })),
+      }));
+    } catch {
+      // ignore
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="notification-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className="top-icon notification-btn"
+        title="Thông báo"
+        aria-label="Thông báo"
+        aria-expanded={open}
+        onClick={handleToggle}
+      >
+        <Icon name="bell" />
+        {data.unreadCount > 0 && (
+          <>
+            <span className="notification-dot" />
+            <span className="notification-badge">
+              {data.unreadCount > 99 ? "99+" : data.unreadCount}
+            </span>
+          </>
+        )}
+      </button>
+      {open && (
+        <div
+          className="notification-dropdown"
+          role="dialog"
+          aria-label="Danh sách thông báo"
+        >
+          <div className="notification-head">
+            <div>
+              <strong>Thông báo</strong>
+              {data.unreadCount > 0 && (
+                <span className="notification-unread-pill">
+                  {data.unreadCount} chưa đọc
+                </span>
+              )}
+            </div>
+            {data.unreadCount > 0 && (
+              <button
+                type="button"
+                className="notification-read-all"
+                disabled={busy}
+                onClick={handleReadAll}
+              >
+                Đánh dấu đã đọc tất cả
+              </button>
+            )}
+          </div>
+          <div className="notification-list">
+            {data.items.length === 0 ? (
+              <div className="notification-empty">
+                <Icon name="bell" size={24} />
+                <span>Chưa có thông báo nào.</span>
+              </div>
+            ) : (
+              data.items.map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  className={`notification-item ${n.isRead ? "" : "is-unread"}`}
+                  onClick={() => handleSelect(n)}
+                >
+                  <div className="notification-item-top">
+                    <strong>{n.title}</strong>
+                    {!n.isRead && <span className="notification-item-dot" />}
+                  </div>
+                  <p className="notification-item-msg">{n.message}</p>
+                  <span className="notification-item-time">
+                    {fmt(n.createdAt)}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Layout() {
   const { user, logout } = useAuth();
@@ -125,6 +283,7 @@ function Layout() {
             Hệ thống <span>/</span> {current}
           </div>
           <div className="topbar-right">
+            <NotificationBell />
             <Link className="user-button" to="/profile">
               <Avatar name={user.fullName} />
               <span>

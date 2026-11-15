@@ -10,24 +10,92 @@ import {
   TicketTable,
   STATUS_LABEL,
   STATUS_COLOR,
+  PRIORITY_LABEL,
 } from "../ui";
+
+const PRIORITY_ORDER = ["Critical", "High", "Medium", "Low"];
+
+function ymd(d) {
+  const z = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+}
+
+function rangeOf(preset) {
+  const end = new Date();
+  const start = new Date();
+  if (preset === "week") {
+    const monday = (end.getDay() + 6) % 7;
+    start.setDate(end.getDate() - monday);
+  } else if (preset === "month") {
+    start.setDate(1);
+  }
+  return { from: ymd(start), to: ymd(end) };
+}
+
+function fillDays(from, to, series) {
+  const map = new Map((series || []).map((x) => [x.date, x.count]));
+  if (!from || !to) return series || [];
+  const out = [];
+  const cur = new Date(from + "T00:00:00");
+  const end = new Date(to + "T00:00:00");
+  while (cur <= end && out.length < 62) {
+    const key = ymd(cur);
+    out.push({ date: key, count: map.get(key) || 0 });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out.length ? out : series || [];
+}
+
+function DayChart({ points }) {
+  const max = Math.max(1, ...points.map((p) => p.count));
+  if (!points.length) return <p className="muted chart-empty">Chưa có dữ liệu.</p>;
+  return (
+    <div className="day-chart" role="img" aria-label="Số ticket theo ngày">
+      {points.map((p) => (
+        <div className="day-col" key={p.date}>
+          <span>{p.count}</span>
+          <div className="day-bar-track">
+            <div style={{ height: `${(p.count / max) * 100}%` }} />
+          </div>
+          <small>{p.date.slice(5)}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const statsRole = user.role === "Admin" || user.role === "Staff";
+  const initial = statsRole ? rangeOf("month") : { from: "", to: "" };
   const [d, setD] = useState(null);
   const [recent, setRecent] = useState([]);
   const [err, setErr] = useState("");
   const [recentErr, setRecentErr] = useState("");
   const [recentLoading, setRecentLoading] = useState(true);
+  const [preset, setPreset] = useState(statsRole ? "month" : "");
+  const [from, setFrom] = useState(initial.from);
+  const [to, setTo] = useState(initial.to);
   useEffect(() => {
     let active = true;
-    api("/dashboard")
+    const p = new URLSearchParams();
+    if (statsRole && from && to) {
+      p.set("from", new Date(from + "T00:00:00").toISOString());
+      p.set("to", new Date(to + "T23:59:59.999").toISOString());
+    }
+    api("/dashboard" + (p.toString() ? "?" + p : ""))
       .then((v) => {
         if (active) setD(v);
       })
       .catch((e) => {
         if (active) setErr(e.message);
       });
+    return () => {
+      active = false;
+    };
+  }, [from, to, statsRole]);
+  useEffect(() => {
+    let active = true;
     api("/tickets?page=1&pageSize=5")
       .then((v) => {
         if (active) setRecent(v?.items || []);
@@ -142,6 +210,51 @@ export default function Dashboard() {
           )
         }
       />
+      {statsRole && (
+        <div className="range-bar">
+          {[
+            ["day", "Hôm nay"],
+            ["week", "Tuần này"],
+            ["month", "Tháng này"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`btn btn-small ${preset === key ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => {
+                const r = rangeOf(key);
+                setPreset(key);
+                setFrom(r.from);
+                setTo(r.to);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          <label>
+            Từ
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => {
+                setPreset("");
+                setFrom(e.target.value);
+              }}
+            />
+          </label>
+          <label>
+            Đến
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => {
+                setPreset("");
+                setTo(e.target.value);
+              }}
+            />
+          </label>
+        </div>
+      )}
       {err ? (
         <Err msg={err} />
       ) : !d ? (
@@ -240,6 +353,45 @@ export default function Dashboard() {
               </div>
             </section>
           </div>
+          {statsRole && (
+            <div className="dashboard-grid">
+              <section className="panel">
+                <div className="panel-heading">
+                  <div>
+                    <h3>Ticket theo ngày</h3>
+                    <p>Số yêu cầu tạo trong từng ngày</p>
+                  </div>
+                </div>
+                <DayChart points={fillDays(from, to, d.series)} />
+              </section>
+              <section className="panel">
+                <div className="panel-heading">
+                  <div>
+                    <h3>Mức độ ưu tiên</h3>
+                    <p>Phân bố trong khoảng đã chọn</p>
+                  </div>
+                </div>
+                <div className="status-report">
+                  {PRIORITY_ORDER.map((p) => {
+                    const n = d.byPriority?.[p] || 0;
+                    const max = Math.max(
+                      1,
+                      ...PRIORITY_ORDER.map((k) => d.byPriority?.[k] || 0),
+                    );
+                    return (
+                      <div className="status-report-row" key={p}>
+                        <span>{PRIORITY_LABEL[p]}</span>
+                        <div className="progress-track">
+                          <div style={{ width: `${(n / max) * 100}%` }} />
+                        </div>
+                        <strong>{n}</strong>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>
+          )}
           {user.role === "Admin" && (
             <div className="dashboard-grid admin-summary">
               <section className="panel">

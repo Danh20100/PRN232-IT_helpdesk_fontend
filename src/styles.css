@@ -797,6 +797,14 @@ td .muted {
 tbody tr:hover {
   background: #fcfdff;
 }
+tbody tr.row-closed,
+tbody tr.row-closed:hover {
+  background: #fde8e8;
+}
+tbody tr.row-resolved,
+tbody tr.row-resolved:hover {
+  background: #e5f7ee;
+}
 .table-title {
   font-weight: 700;
   color: #34415a;

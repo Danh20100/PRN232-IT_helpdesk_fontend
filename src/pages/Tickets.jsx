@@ -7,6 +7,33 @@ import { Err, Icon, PageHeader, TicketTable, STATUS_LABEL } from "../ui";
 
 const VIEW_STORAGE_KEY = "tickets_view_mode";
 const KANBAN_PAGE_SIZE = 50;
+const emptyPage = { items: [], total: 0, page: 1, pageSize: 10 };
+
+function Pager({ page, pages, loading, onPage }) {
+  return (
+    <div className="pagination">
+      <span>
+        Trang {page} / {pages}
+      </span>
+      <div>
+        <button
+          className="btn btn-secondary btn-small"
+          disabled={loading || page <= 1}
+          onClick={() => onPage(page - 1)}
+        >
+          ‹ Trước
+        </button>
+        <button
+          className="btn btn-secondary btn-small"
+          disabled={loading || page >= pages}
+          onClick={() => onPage(page + 1)}
+        >
+          Sau ›
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Tickets() {
   const { user } = useAuth();
@@ -14,12 +41,8 @@ export default function Tickets() {
     const saved = localStorage.getItem(VIEW_STORAGE_KEY);
     return saved === "kanban" ? "kanban" : "list";
   });
-  const [data, setData] = useState({
-    items: [],
-    total: 0,
-    page: 1,
-    pageSize: 10,
-  });
+  const [data, setData] = useState(emptyPage);
+  const [resolved, setResolved] = useState(emptyPage);
   const [kanban, setKanban] = useState({
     items: [],
     total: 0,
@@ -33,10 +56,15 @@ export default function Tickets() {
     categoryId: "",
     page: 1,
   });
+  const [rPage, setRPage] = useState(1);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingResolved, setLoadingResolved] = useState(true);
+  const [tick, setTick] = useState(0);
   const [kanbanLoading, setKanbanLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const showMain = q.status !== "Resolved";
+  const showResolved = q.status === "" || q.status === "Resolved";
 
   const changeView = (nextView) => {
     setView(nextView);
@@ -49,15 +77,16 @@ export default function Tickets() {
       .catch(() => {});
   }, []);
 
-  // Tải dữ liệu cho List View (giữ nguyên cơ chế phân trang mặc định pageSize = 10).
   useEffect(() => {
-    if (view !== "list") return;
+    if (view !== "list" || !showMain) {
+      if (view === "list") setLoading(false);
+      return;
+    }
     let active = true;
     setLoading(true);
     setErr("");
-    const p = new URLSearchParams();
+    const p = new URLSearchParams({ sort: "queue" });
     Object.entries(q).forEach(([k, v]) => v !== "" && p.set(k, v));
-    // Bỏ qua phản hồi cũ khi người dùng thay đổi bộ lọc liên tục.
     api("/tickets?" + p)
       .then((v) => {
         if (active && v) setData(v);
@@ -71,9 +100,38 @@ export default function Tickets() {
     return () => {
       active = false;
     };
-  }, [q, view]);
+  }, [q, view, tick, showMain]);
 
-  // Tải dữ liệu cho Kanban View (pageSize = 50, hỗ trợ tải thêm nếu total > 50).
+  useEffect(() => {
+    if (view !== "list" || !showResolved) {
+      if (view === "list") setLoadingResolved(false);
+      return;
+    }
+    let active = true;
+    setLoadingResolved(true);
+    const p = new URLSearchParams({
+      status: "Resolved",
+      page: rPage,
+      sort: "queue",
+    });
+    if (q.search) p.set("search", q.search);
+    if (q.categoryId) p.set("categoryId", q.categoryId);
+    api("/tickets?" + p)
+      .then((v) => {
+        if (active && v) setResolved(v);
+      })
+      .catch((e) => {
+        if (active) setErr(e.message);
+      })
+      .finally(() => {
+        if (active) setLoadingResolved(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [q.search, q.categoryId, rPage, view, tick, showResolved]);
+
+  // Kanban không gửi sort=queue: sort đó loại ticket Resolved khi không lọc trạng thái.
   useEffect(() => {
     if (view !== "kanban") return;
     let active = true;
@@ -184,7 +242,6 @@ export default function Tickets() {
     });
     if (updated) {
       setKanban((cur) => {
-        // Nếu đang lọc theo 1 status cố định mà ticket đã sang status khác, loại khỏi kết quả lọc hiện tại.
         if (q.status && updated.status !== q.status) {
           return {
             ...cur,
@@ -199,15 +256,44 @@ export default function Tickets() {
           ),
         };
       });
+      setTick((n) => n + 1);
     }
     return updated;
   };
 
-  const upd = (k) => (e) => setQ({ ...q, [k]: e.target.value, page: 1 });
+  const upd = (k) => (e) => {
+    setRPage(1);
+    setQ({ ...q, [k]: e.target.value, page: 1 });
+  };
+  const clearFilters = () => {
+    setRPage(1);
+    setQ({ search: "", status: "", categoryId: "", page: 1 });
+  };
+  const closeTicket = async (t) => {
+    setErr("");
+    try {
+      await api(`/tickets/${t.id}/status`, {
+        method: "PATCH",
+        body: { status: "Closed" },
+      });
+      setTick((n) => n + 1);
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
   const pages = Math.max(1, Math.ceil(data.total / data.pageSize));
+  const rPages = Math.max(1, Math.ceil(resolved.total / resolved.pageSize));
   const isKanban = view === "kanban";
-  const activeLoading = isKanban ? kanbanLoading : loading;
-  const activeTotal = isKanban ? kanban.total : data.total;
+  const activeLoading = isKanban
+    ? kanbanLoading
+    : showMain
+      ? loading
+      : loadingResolved;
+  const activeTotal = isKanban
+    ? kanban.total
+    : showMain
+      ? data.total
+      : resolved.total;
   const hasMoreKanban = kanban.items.length < kanban.total;
 
   return (
@@ -268,12 +354,7 @@ export default function Tickets() {
           </span>
           <div className="toolbar-actions">
             {(q.search || q.status || q.categoryId) && (
-              <button
-                className="text-button"
-                onClick={() =>
-                  setQ({ search: "", status: "", categoryId: "", page: 1 })
-                }
-              >
+              <button className="text-button" onClick={clearFilters}>
                 Xóa bộ lọc
               </button>
             )}
@@ -303,11 +384,12 @@ export default function Tickets() {
             </div>
           </div>
         </div>
-        {err ? (
+        {err && (
           <div className="panel-body">
             <Err msg={err} />
           </div>
-        ) : isKanban ? (
+        )}
+        {isKanban ? (
           <KanbanBoard
             items={kanban.items}
             total={kanban.total}
@@ -320,32 +402,43 @@ export default function Tickets() {
             user={user}
           />
         ) : (
-          <>
-            <TicketTable items={data.items} loading={loading} />
-            <div className="pagination">
-              <span>
-                Trang {data.page} / {pages}
-              </span>
-              <div>
-                <button
-                  className="btn btn-secondary btn-small"
-                  disabled={loading || q.page <= 1}
-                  onClick={() => setQ({ ...q, page: q.page - 1 })}
-                >
-                  ‹ Trước
-                </button>
-                <button
-                  className="btn btn-secondary btn-small"
-                  disabled={loading || q.page >= pages}
-                  onClick={() => setQ({ ...q, page: q.page + 1 })}
-                >
-                  Sau ›
-                </button>
-              </div>
-            </div>
-          </>
+          showMain && (
+            <>
+              <TicketTable items={data.items} loading={loading} />
+              <Pager
+                page={data.page}
+                pages={pages}
+                loading={loading}
+                onPage={(page) => setQ({ ...q, page })}
+              />
+            </>
+          )
         )}
       </section>
+      {!isKanban && showResolved && (
+        <section className="panel">
+          <div className="table-toolbar">
+            <span>
+              <Icon name="check" size={15} />
+              {loadingResolved
+                ? "Đang tải…"
+                : `${resolved.total} đã giải quyết`}
+            </span>
+          </div>
+          <TicketTable
+            items={resolved.items}
+            loading={loadingResolved}
+            user={user}
+            onClose={closeTicket}
+          />
+          <Pager
+            page={resolved.page}
+            pages={rPages}
+            loading={loadingResolved}
+            onPage={setRPage}
+          />
+        </section>
+      )}
     </>
   );
 }

@@ -64,6 +64,8 @@ export function getAllowedTransitions(t, me) {
       { to: "Closed", label: "Xác nhận đã hết lỗi", requiresNote: false },
       { to: "InProgress", label: "Vẫn còn lỗi", requiresNote: false },
     );
+  } else if (me.role === "Admin" && t.status === "Resolved") {
+    moves.push({ to: "Closed", label: "Đóng ticket", requiresNote: false });
   }
   if (owner && t.status === "Open") {
     moves.push({

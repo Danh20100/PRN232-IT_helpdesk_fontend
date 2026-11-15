@@ -129,7 +129,11 @@ export const Empty = ({
     <span>{description}</span>
   </div>
 );
-export function TicketTable({ items = [], loading = false }) {
+export function TicketTable({ items = [], loading = false, onClose, user }) {
+  const cols = onClose ? 8 : 7;
+  const canClose = (t) =>
+    t.status === "Resolved" &&
+    (user?.role === "Admin" || t.createdById === user?.userId);
   return (
     <div className="table-scroll">
       <table>
@@ -144,12 +148,13 @@ export function TicketTable({ items = [], loading = false }) {
             <th>
               <span className="sr-only">Chi tiết</span>
             </th>
+            {onClose && <th>Đóng</th>}
           </tr>
         </thead>
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan="7">
+              <td colSpan={cols}>
                 <div className="empty" role="status">
                   Đang tải yêu cầu…
                 </div>
@@ -157,7 +162,16 @@ export function TicketTable({ items = [], loading = false }) {
             </tr>
           ) : (
             items.map((t) => (
-              <tr key={t.id}>
+              <tr
+                key={t.id}
+                className={
+                  t.status === "Closed"
+                    ? "row-closed"
+                    : t.status === "Resolved"
+                      ? "row-resolved"
+                      : undefined
+                }
+              >
                 <td>
                   <Link className="ticket-code" to={`/tickets/${t.id}`}>
                     {t.code}
@@ -190,12 +204,24 @@ export function TicketTable({ items = [], loading = false }) {
                     <Icon name="arrow" size={16} />
                   </Link>
                 </td>
+                {onClose && (
+                  <td>
+                    {canClose(t) && (
+                      <button
+                        className="btn btn-secondary btn-small"
+                        onClick={() => onClose(t)}
+                      >
+                        Đóng
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))
           )}
           {!loading && !items.length && (
             <tr>
-              <td colSpan="7">
+              <td colSpan={cols}>
                 <Empty />
               </td>
             </tr>

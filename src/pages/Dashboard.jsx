@@ -12,6 +12,7 @@ import {
   STATUS_COLOR,
   PRIORITY_LABEL,
 } from "../ui";
+import SlaDashboardSection from "../SlaDashboardSection";
 
 const PRIORITY_ORDER = ["Critical", "High", "Medium", "Low"];
 
@@ -459,6 +460,9 @@ export default function Dashboard() {
                 </div>
               </section>
             </div>
+          )}
+          {statsRole && (
+            <SlaDashboardSection user={user} from={from} to={to} />
           )}
         </>
       )}

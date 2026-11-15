@@ -284,7 +284,6 @@ function Layout() {
           </div>
           <div className="topbar-right">
             <NotificationBell />
-            <div className="user-button">
             <Link className="user-button" to="/profile">
               <Avatar name={user.fullName} />
               <span>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { getAllowedTransitions, TicketProgressKanban } from "../KanbanBoard";
 import TicketForm from "../TicketForm";
 import {
   Avatar,
@@ -16,19 +17,9 @@ import {
   STATUS_LABEL,
 } from "../ui";
 
-// Backend vẫn xác thực quyền và các bước chuyển trạng thái.
+// Dùng chung nguồn quy tắc chuyển trạng thái duy nhất với Kanban, Backend vẫn xác thực quyền.
 function actionsFor(t, me) {
-  const staff = me.role === "Staff" && t.assignedToId === me.userId;
-  const owner = t.createdById === me.userId;
-  const a = [];
-  if (staff && t.status === "Open") a.push(["InProgress", "Bắt đầu xử lý"]);
-  if (staff && t.status === "InProgress")
-    a.push(["Pending", "Chờ phản hồi"], ["Resolved", "Đã xử lý xong"]);
-  if (staff && t.status === "Pending") a.push(["InProgress", "Tiếp tục xử lý"]);
-  if (owner && t.status === "Resolved")
-    a.push(["Closed", "Xác nhận đã hết lỗi"], ["InProgress", "Vẫn còn lỗi"]);
-  if (owner && t.status === "Open") a.push(["Cancelled", "Hủy yêu cầu"]);
-  return a;
+  return getAllowedTransitions(t, me).map((m) => [m.to, m.label]);
 }
 
 export default function TicketDetail() {
@@ -45,6 +36,7 @@ export default function TicketDetail() {
   const [staffId, setStaffId] = useState("");
   const [due, setDue] = useState("");
   const [fb, setFb] = useState({ rating: 5, comment: "" });
+  const [viewMode, setViewMode] = useState("detail");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const fetchDetail = async () => {
@@ -178,117 +170,157 @@ export default function TicketDetail() {
         title={t.title}
         description={`Tạo lúc ${fmt(t.createdAt)}`}
         action={
-          <div className="badge-group">
-            <StatusBadge s={t.status} />
-            <PriorityBadge p={t.priority} />
+          <div className="detail-header-actions">
+            <div
+              className="tab-pills"
+              role="tablist"
+              aria-label="Chế độ xem chi tiết ticket"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={viewMode === "detail"}
+                className={viewMode === "detail" ? "selected" : ""}
+                onClick={() => setViewMode("detail")}
+              >
+                Chi tiết
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={viewMode === "progress"}
+                className={viewMode === "progress" ? "selected" : ""}
+                onClick={() => setViewMode("progress")}
+              >
+                Tiến độ Kanban
+              </button>
+            </div>
+            <div className="badge-group">
+              <StatusBadge s={t.status} />
+              <PriorityBadge p={t.priority} />
+            </div>
           </div>
         }
       />
       <Err msg={err} />
       <div className="detail-grid">
         <div className="detail-main">
-          {canEdit && editingId === t.id ? (
-            <TicketForm
-              key={t.id}
+          {viewMode === "progress" ? (
+            <TicketProgressKanban
               ticket={t}
-              onSave={saveTicket}
-              cancel={(saving) => (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  disabled={saving}
-                  onClick={() => setEditingId(null)}
-                >
-                  Hủy bỏ
-                </button>
-              )}
+              history={history}
+              user={user}
+              note={note}
+              onNoteChange={setNote}
+              onChangeStatus={changeStatus}
+              busy={busy}
             />
           ) : (
-            <section className="panel detail-section">
-              <div className="detail-section-heading">
-                <h3>Thông tin yêu cầu</h3>
-                {canEdit && (
-                  <button
-                    type="button"
-                    className="text-button"
-                    onClick={() => setEditingId(t.id)}
-                  >
-                    Chỉnh sửa
-                  </button>
-                )}
-              </div>
-              <p className="description-text">{t.description}</p>
-              <div className="detail-props">
-                <div>
-                  <span>Danh mục sự cố</span>
-                  <strong>{t.category}</strong>
-                </div>
-                <div>
-                  <span>Hạn xử lý</span>
-                  <strong>{fmt(t.dueDate)}</strong>
-                </div>
-                <div>
-                  <span>Mức độ ưu tiên</span>
-                  <PriorityBadge p={t.priority} />
-                </div>
-                <div>
-                  <span>Trạng thái</span>
-                  <StatusBadge s={t.status} />
-                </div>
-              </div>
-            </section>
-          )}
-          <section className="panel detail-section">
-            <h3>
-              Trao đổi <span className="muted">({comments.length})</span>
-            </h3>
-            <div className="comments">
-              {comments.map((c) => (
-                <div className="comment" key={c.id}>
-                  <Avatar name={c.userName} />
-                  <div className="comment-content">
-                    <div className="comment-meta">
-                      <strong>{c.userName}</strong>
-                      <span>{fmt(c.createdAt)}</span>
-                    </div>
-                    <p className="preserve-text">{c.content}</p>
-                  </div>
-                </div>
-              ))}
-              {!comments.length && (
-                <div className="comments-empty">
-                  Chưa có bình luận. Bắt đầu trao đổi tại đây.
-                </div>
-              )}
-            </div>
-            {!closed && (
-              <form className="comment-form" onSubmit={addComment}>
-                <label className="sr-only" htmlFor="comment">
-                  Nội dung bình luận
-                </label>
-                <textarea
-                  id="comment"
-                  rows="3"
-                  placeholder="Viết bình luận hoặc cập nhật thông tin…"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  required
+            <>
+              {canEdit && editingId === t.id ? (
+                <TicketForm
+                  key={t.id}
+                  ticket={t}
+                  onSave={saveTicket}
+                  cancel={(saving) => (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={saving}
+                      onClick={() => setEditingId(null)}
+                    >
+                      Hủy bỏ
+                    </button>
+                  )}
                 />
-                <div>
-                  <span>
-                    Trao đổi trực tiếp với người tham gia xử lý yêu cầu.
-                  </span>
-                  <button
-                    className="btn btn-primary"
-                    disabled={busy || !text.trim()}
-                  >
-                    Gửi bình luận
-                    <Icon name="arrow" size={16} />
-                  </button>
+              ) : (
+                <section className="panel detail-section">
+                  <div className="detail-section-heading">
+                    <h3>Thông tin yêu cầu</h3>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={() => setEditingId(t.id)}
+                      >
+                        Chỉnh sửa
+                      </button>
+                    )}
+                  </div>
+                  <p className="description-text">{t.description}</p>
+                  <div className="detail-props">
+                    <div>
+                      <span>Danh mục sự cố</span>
+                      <strong>{t.category}</strong>
+                    </div>
+                    <div>
+                      <span>Hạn xử lý</span>
+                      <strong>{fmt(t.dueDate)}</strong>
+                    </div>
+                    <div>
+                      <span>Mức độ ưu tiên</span>
+                      <PriorityBadge p={t.priority} />
+                    </div>
+                    <div>
+                      <span>Trạng thái</span>
+                      <StatusBadge s={t.status} />
+                    </div>
+                  </div>
+                </section>
+              )}
+              <section className="panel detail-section">
+                <h3>
+                  Trao đổi <span className="muted">({comments.length})</span>
+                </h3>
+                <div className="comments">
+                  {comments.map((c) => (
+                    <div className="comment" key={c.id}>
+                      <Avatar name={c.userName} />
+                      <div className="comment-content">
+                        <div className="comment-meta">
+                          <strong>{c.userName}</strong>
+                          <span>{fmt(c.createdAt)}</span>
+                        </div>
+                        <p className="preserve-text">{c.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {!comments.length && (
+                    <div className="comments-empty">
+                      Chưa có bình luận. Bắt đầu trao đổi tại đây.
+                    </div>
+                  )}
                 </div>
-              </form>
-            )}
-          </section>
+                {!closed && (
+                  <form className="comment-form" onSubmit={addComment}>
+                    <label className="sr-only" htmlFor="comment">
+                      Nội dung bình luận
+                    </label>
+                    <textarea
+                      id="comment"
+                      rows="3"
+                      placeholder="Viết bình luận hoặc cập nhật thông tin…"
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      required
+                    />
+                    <div>
+                      <span>
+                        Trao đổi trực tiếp với người tham gia xử lý yêu cầu.
+                      </span>
+                      <button
+                        className="btn btn-primary"
+                        disabled={busy || !text.trim()}
+                      >
+                        Gửi bình luận
+                        <Icon name="arrow" size={16} />
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </section>
+            </>
+          )}
           <section className="panel detail-section">
             <h3>Lịch sử trạng thái</h3>
             <div className="timeline">

@@ -389,6 +389,30 @@ export default function Tickets() {
             <Err msg={err} />
           </div>
         )}
+        {!isKanban && showResolved && (
+          <>
+            <div className="table-toolbar">
+              <span>
+                <Icon name="check" size={15} />
+                {loadingResolved
+                  ? "Đang tải…"
+                  : `${resolved.total} đã giải quyết`}
+              </span>
+            </div>
+            <TicketTable
+              items={resolved.items}
+              loading={loadingResolved}
+              user={user}
+              onClose={closeTicket}
+            />
+            <Pager
+              page={resolved.page}
+              pages={rPages}
+              loading={loadingResolved}
+              onPage={setRPage}
+            />
+          </>
+        )}
         {isKanban ? (
           <KanbanBoard
             items={kanban.items}
@@ -415,30 +439,6 @@ export default function Tickets() {
           )
         )}
       </section>
-      {!isKanban && showResolved && (
-        <section className="panel">
-          <div className="table-toolbar">
-            <span>
-              <Icon name="check" size={15} />
-              {loadingResolved
-                ? "Đang tải…"
-                : `${resolved.total} đã giải quyết`}
-            </span>
-          </div>
-          <TicketTable
-            items={resolved.items}
-            loading={loadingResolved}
-            user={user}
-            onClose={closeTicket}
-          />
-          <Pager
-            page={resolved.page}
-            pages={rPages}
-            loading={loadingResolved}
-            onPage={setRPage}
-          />
-        </section>
-      )}
     </>
   );
 }

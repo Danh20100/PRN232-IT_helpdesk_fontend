@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Link,
   NavLink,
   Navigate,
   Outlet,
@@ -17,6 +18,7 @@ import Tickets from "./pages/Tickets";
 import NewTicket from "./pages/NewTicket";
 import TicketDetail from "./pages/TicketDetail";
 import Admin from "./pages/Admin";
+import Profile from "./pages/Profile";
 
 function NotificationBell() {
   const nav = useNavigate();
@@ -201,11 +203,13 @@ function Layout() {
       : []),
   ];
   const current =
-    location.pathname.startsWith("/tickets/") &&
-    location.pathname !== "/tickets/new"
-      ? "Chi tiết ticket"
-      : links.find((l) => l.to === location.pathname)?.text ||
-        "Không gian làm việc";
+    location.pathname === "/profile"
+      ? "Hồ sơ"
+      : location.pathname.startsWith("/tickets/") &&
+          location.pathname !== "/tickets/new"
+        ? "Chi tiết ticket"
+        : links.find((l) => l.to === location.pathname)?.text ||
+          "Không gian làm việc";
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobile ? "open" : ""}`} id="sidebar">
@@ -281,12 +285,13 @@ function Layout() {
           <div className="topbar-right">
             <NotificationBell />
             <div className="user-button">
+            <Link className="user-button" to="/profile">
               <Avatar name={user.fullName} />
               <span>
                 <strong>{user.fullName}</strong>
                 <small>{ROLE_LABEL[user.role]}</small>
               </span>
-            </div>
+            </Link>
             <button
               className="top-icon"
               title="Đăng xuất"
@@ -333,6 +338,7 @@ export default function App() {
             }
           />
           <Route path="tickets/:id" element={<TicketDetail />} />
+          <Route path="profile" element={<Profile />} />
           <Route
             path="admin"
             element={

@@ -78,11 +78,10 @@ export default function Dashboard() {
   const [to, setTo] = useState(initial.to);
   useEffect(() => {
     let active = true;
+    setErr("");
     const p = new URLSearchParams();
-    if (statsRole && from && to) {
-      p.set("from", new Date(from + "T00:00:00").toISOString());
-      p.set("to", new Date(to + "T23:59:59.999").toISOString());
-    }
+    if (statsRole && from) p.set("from", from);
+    if (statsRole && to) p.set("to", to);
     api("/dashboard" + (p.toString() ? "?" + p : ""))
       .then((v) => {
         if (active) setD(v);

@@ -33,6 +33,74 @@ function rangeOf(preset) {
   return { from: ymd(start), to: ymd(end) };
 }
 
+function ticketTime(d) {
+  if (!d) return 0;
+  const t = new Date(/Z$|[+-]\d\d:\d\d$/.test(d) ? d : d + "Z");
+  return Number.isNaN(t.getTime()) ? 0 : t.getTime();
+}
+
+function inRange(ticket, from, to) {
+  if (!from && !to) return true;
+  const t = ticketTime(ticket.createdAt);
+  if (!t) return false;
+  const start = from ? new Date(from + "T00:00:00").getTime() : 0;
+  const end = to ? new Date(to + "T23:59:59.999").getTime() : Infinity;
+  return t >= start && t <= end;
+}
+
+const PR_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+
+function closedLast(items) {
+  const end = (s) => (s === "Closed" || s === "Cancelled" ? 1 : 0);
+  return [...items].sort(
+    (a, b) =>
+      end(a.status) - end(b.status) ||
+      (PR_RANK[b.priority] || 0) - (PR_RANK[a.priority] || 0) ||
+      ticketTime(b.createdAt) - ticketTime(a.createdAt),
+  );
+}
+
+function statsFrom(tickets) {
+  const byStatus = {};
+  const byPriority = {};
+  const byCategory = {};
+  const byStaff = {};
+  const series = {};
+  let overdue = 0;
+  const now = Date.now();
+  for (const t of tickets) {
+    byStatus[t.status] = (byStatus[t.status] || 0) + 1;
+    byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
+    if (t.category) byCategory[t.category] = (byCategory[t.category] || 0) + 1;
+    if (t.assignedTo) {
+      const row = byStaff[t.assignedTo] || { staff: t.assignedTo, total: 0, done: 0 };
+      row.total += 1;
+      if (t.status === "Resolved" || t.status === "Closed") row.done += 1;
+      byStaff[t.assignedTo] = row;
+    }
+    const day = ymd(new Date(ticketTime(t.createdAt)));
+    series[day] = (series[day] || 0) + 1;
+    const due = ticketTime(t.dueDate);
+    if (
+      due &&
+      due < now &&
+      !["Resolved", "Closed", "Cancelled"].includes(t.status)
+    )
+      overdue += 1;
+  }
+  return {
+    total: tickets.length,
+    byStatus,
+    byPriority,
+    overdue,
+    series: Object.entries(series).map(([date, count]) => ({ date, count })),
+    byCategory: Object.entries(byCategory).map(([category, count]) => ({
+      category,
+      count,
+    })),
+    byStaff: Object.values(byStaff),
+  };
+}
 function fillDays(from, to, series) {
   const map = new Map((series || []).map((x) => [x.date, x.count]));
   if (!from || !to) return series || [];
@@ -69,58 +137,73 @@ export default function Dashboard() {
   const { user } = useAuth();
   const statsRole = user.role === "Admin" || user.role === "Staff";
   const initial = statsRole ? rangeOf("month") : { from: "", to: "" };
-  const [d, setD] = useState(null);
-  const [recent, setRecent] = useState([]);
+  const [server, setServer] = useState(null);
+  const [tickets, setTickets] = useState(null);
+  const [rating, setRating] = useState(null);
   const [err, setErr] = useState("");
   const [recentErr, setRecentErr] = useState("");
-  const [recentLoading, setRecentLoading] = useState(true);
   const [preset, setPreset] = useState(statsRole ? "month" : "");
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
+  const [applied, setApplied] = useState(initial);
+  const apply = () => {
+    let start = from;
+    let end = to;
+    if (start && end && start > end) [start, end] = [end, start];
+    setFrom(start);
+    setTo(end);
+    setApplied({ from: start, to: end });
+  };
   useEffect(() => {
     let active = true;
-    setErr("");
-    const p = new URLSearchParams();
-    if (statsRole && from) p.set("from", from);
-    if (statsRole && to) p.set("to", to);
-    api("/dashboard" + (p.toString() ? "?" + p : ""))
+    api("/tickets?pageSize=50")
       .then((v) => {
-        if (active) setD(v);
+        if (active) setTickets(v?.items || []);
       })
       .catch((e) => {
-        if (active) setErr(e.message);
-      });
-    return () => {
-      active = false;
-    };
-  }, [from, to, statsRole]);
-  useEffect(() => {
-    let active = true;
-    api("/tickets?page=1&pageSize=5")
-      .then((v) => {
-        if (active) setRecent(v?.items || []);
-      })
-      .catch((e) => {
-        if (active) setRecentErr(e.message);
-      })
-      .finally(() => {
-        if (active) setRecentLoading(false);
+        if (active) {
+          setRecentErr(e.message);
+          setTickets([]);
+        }
       });
     return () => {
       active = false;
     };
   }, []);
+  useEffect(() => {
+    let active = true;
+    api("/dashboard")
+      .then((v) => {
+        if (!active || !v) return;
+        if (statsRole) setRating(v.averageRating ?? null);
+        else setServer(v);
+      })
+      .catch((e) => {
+        if (active && !statsRole) setErr(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [statsRole]);
+  const stats = statsRole
+    ? tickets && {
+        ...statsFrom(
+          tickets.filter((t) => inRange(t, applied.from, applied.to)),
+        ),
+        averageRating: rating,
+      }
+    : server;
   const greet =
     new Date().getHours() < 12
       ? "Chào buổi sáng"
       : new Date().getHours() < 18
         ? "Chào buổi chiều"
         : "Chào buổi tối";
-  const counts = d?.byStatus || {};
+  const counts = stats?.byStatus || {};
   const metrics = [
     [
       "Tổng yêu cầu",
-      d?.total || 0,
+      stats?.total || 0,
       "ticket",
       "blue",
       "Ticket trong phạm vi của bạn",
@@ -253,11 +336,14 @@ export default function Dashboard() {
               }}
             />
           </label>
+          <button type="button" className="btn btn-primary btn-small" onClick={apply}>
+            Áp dụng
+          </button>
         </div>
       )}
       {err ? (
         <Err msg={err} />
-      ) : !d ? (
+      ) : !stats ? (
         <Loading />
       ) : (
         <>
@@ -282,7 +368,7 @@ export default function Dashboard() {
                   <h3>Phân bố trạng thái</h3>
                   <p>Tổng quan Ticket theo tiến độ</p>
                 </div>
-                <span className="panel-meta">{d.total} yêu cầu</span>
+                <span className="panel-meta">{stats.total} yêu cầu</span>
               </div>
               <div className="chart-layout">
                 <div className="donut-wrap">
@@ -301,7 +387,7 @@ export default function Dashboard() {
                     }
                   />
                   <div className="donut-center">
-                    <strong>{d.total}</strong>
+                    <strong>{stats.total}</strong>
                     <span>Ticket</span>
                   </div>
                 </div>
@@ -346,8 +432,8 @@ export default function Dashboard() {
               <div className="tip-strip">
                 <Icon name="alert" />
                 <span>
-                  {d.overdue
-                    ? `${d.overdue} yêu cầu đã quá hạn xử lý.`
+                  {stats.overdue
+                    ? `${stats.overdue} yêu cầu đã quá hạn xử lý.`
                     : "Mô tả sự cố rõ ràng giúp đội ngũ IT hỗ trợ nhanh hơn."}
                 </span>
               </div>
@@ -362,7 +448,7 @@ export default function Dashboard() {
                     <p>Số yêu cầu tạo trong từng ngày</p>
                   </div>
                 </div>
-                <DayChart points={fillDays(from, to, d.series)} />
+                <DayChart points={fillDays(applied.from, applied.to, stats.series)} />
               </section>
               <section className="panel">
                 <div className="panel-heading">
@@ -373,10 +459,10 @@ export default function Dashboard() {
                 </div>
                 <div className="status-report">
                   {PRIORITY_ORDER.map((p) => {
-                    const n = d.byPriority?.[p] || 0;
+                    const n = stats.byPriority?.[p] || 0;
                     const max = Math.max(
                       1,
-                      ...PRIORITY_ORDER.map((k) => d.byPriority?.[k] || 0),
+                      ...PRIORITY_ORDER.map((k) => stats.byPriority?.[k] || 0),
                     );
                     return (
                       <div className="status-report-row" key={p}>
@@ -402,14 +488,14 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="status-report">
-                  {d.byCategory?.length ? (
-                    d.byCategory.map((x) => (
+                  {stats.byCategory?.length ? (
+                    stats.byCategory.map((x) => (
                       <div className="status-report-row" key={x.category}>
                         <span>{x.category}</span>
                         <div className="progress-track">
                           <div
                             style={{
-                              width: `${d.total ? (x.count / d.total) * 100 : 0}%`,
+                              width: `${stats.total ? (x.count / stats.total) * 100 : 0}%`,
                             }}
                           />
                         </div>
@@ -427,8 +513,8 @@ export default function Dashboard() {
                     <h3>Hiệu suất hỗ trợ</h3>
                     <p>
                       Điểm hài lòng:{" "}
-                      {d.averageRating
-                        ? Number(d.averageRating).toFixed(1) + " / 5"
+                      {stats.averageRating
+                        ? Number(stats.averageRating).toFixed(1) + " / 5"
                         : "Chưa có đánh giá"}
                     </p>
                   </div>
@@ -443,14 +529,14 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {d.byStaff?.map((x) => (
+                      {stats.byStaff?.map((x) => (
                         <tr key={x.staff}>
                           <td>{x.staff}</td>
                           <td>{x.total}</td>
                           <td>{x.done}</td>
                         </tr>
                       ))}
-                      {!d.byStaff?.length && (
+                      {!stats.byStaff?.length && (
                         <tr>
                           <td colSpan="3">Chưa có dữ liệu.</td>
                         </tr>
@@ -481,7 +567,10 @@ export default function Dashboard() {
             <Err msg={recentErr} />
           </div>
         ) : (
-          <TicketTable items={recent} loading={recentLoading} />
+          <TicketTable
+            items={closedLast(tickets || []).slice(0, 5)}
+            loading={tickets === null}
+          />
         )}
       </section>
     </>

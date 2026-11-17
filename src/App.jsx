@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Link,
-  NavLink,
   Navigate,
   Outlet,
   Route,
@@ -19,6 +18,7 @@ import NewTicket from "./pages/NewTicket";
 import TicketDetail from "./pages/TicketDetail";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
+import SlaMonitoring from "./pages/SlaMonitoring";
 
 function NotificationBell() {
   const nav = useNavigate();
@@ -177,39 +177,217 @@ function NotificationBell() {
   );
 }
 
+function buildNavGroups(role, resolvedCount) {
+  if (role === "Admin") {
+    return [
+      {
+        label: "ĐIỀU PHỐI & GIÁM SÁT",
+        items: [
+          {
+            key: "overview",
+            to: "/",
+            icon: "dashboard",
+            text: "Tổng quan",
+            isActive: (path) => path === "/",
+          },
+          {
+            key: "tickets-list",
+            to: "/tickets?view=list",
+            icon: "ticket",
+            text: "Quản lý Ticket",
+            isActive: (path, sp) =>
+              path === "/tickets" && sp.get("view") !== "kanban",
+          },
+          {
+            key: "tickets-kanban",
+            to: "/tickets?view=kanban",
+            icon: "activity",
+            text: "Bảng Kanban",
+            isActive: (path, sp) =>
+              path === "/tickets" && sp.get("view") === "kanban",
+          },
+          {
+            key: "sla",
+            to: "/sla",
+            icon: "clock",
+            text: "Giám sát SLA & Hiệu suất",
+            isActive: (path) => path === "/sla",
+          },
+          {
+            key: "new-ticket",
+            to: "/tickets/new",
+            icon: "plus",
+            text: "Tạo yêu cầu",
+            isActive: (path) => path === "/tickets/new",
+          },
+        ],
+      },
+      {
+        label: "QUẢN TRỊ HỆ THỐNG",
+        items: [
+          {
+            key: "admin-users",
+            to: "/admin",
+            icon: "users",
+            text: "Quản lý người dùng",
+            isActive: (path) => path === "/admin",
+          },
+          {
+            key: "admin-categories",
+            to: "/admin/categories",
+            icon: "folder",
+            text: "Danh mục sự cố",
+            isActive: (path) => path === "/admin/categories",
+          },
+          {
+            key: "profile",
+            to: "/profile",
+            icon: "user",
+            text: "Hồ sơ cá nhân",
+            isActive: (path) => path === "/profile",
+          },
+        ],
+      },
+    ];
+  }
+
+  if (role === "Staff") {
+    return [
+      {
+        label: "KHÔNG GIAN LÀM VIỆC",
+        items: [
+          {
+            key: "overview",
+            to: "/",
+            icon: "dashboard",
+            text: "Tổng quan",
+            isActive: (path) => path === "/",
+          },
+          {
+            key: "tickets-list",
+            to: "/tickets?view=list",
+            icon: "ticket",
+            text: "Ticket được giao",
+            isActive: (path, sp) =>
+              path === "/tickets" && sp.get("view") !== "kanban",
+          },
+          {
+            key: "tickets-kanban",
+            to: "/tickets?view=kanban",
+            icon: "activity",
+            text: "Bảng Kanban",
+            isActive: (path, sp) =>
+              path === "/tickets" && sp.get("view") === "kanban",
+          },
+          {
+            key: "sla",
+            to: "/sla",
+            icon: "clock",
+            text: "Giám sát SLA",
+            isActive: (path) => path === "/sla",
+          },
+          {
+            key: "profile",
+            to: "/profile",
+            icon: "user",
+            text: "Hồ sơ cá nhân",
+            isActive: (path) => path === "/profile",
+          },
+        ],
+      },
+    ];
+  }
+
+  // USER
+  return [
+    {
+      label: "KHÔNG GIAN LÀM VIỆC",
+      items: [
+        {
+          key: "overview",
+          to: "/",
+          icon: "dashboard",
+          text: "Tổng quan",
+          isActive: (path) => path === "/",
+        },
+        {
+          key: "my-tickets",
+          to: "/tickets",
+          icon: "ticket",
+          text: "Yêu cầu của tôi",
+          isActive: (path, sp) =>
+            path === "/tickets" && sp.get("status") !== "Resolved",
+        },
+        {
+          key: "new-ticket",
+          to: "/tickets/new",
+          icon: "plus",
+          text: "Tạo yêu cầu mới",
+          isActive: (path) => path === "/tickets/new",
+        },
+        {
+          key: "need-feedback",
+          to: "/tickets?status=Resolved",
+          icon: "check",
+          text: "Cần phản hồi",
+          badge: resolvedCount > 0 ? resolvedCount : 0,
+          isActive: (path, sp) =>
+            path === "/tickets" && sp.get("status") === "Resolved",
+        },
+        {
+          key: "profile",
+          to: "/profile",
+          icon: "user",
+          text: "Hồ sơ cá nhân",
+          isActive: (path) => path === "/profile",
+        },
+      ],
+    },
+  ];
+}
+
 function Layout() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
   const [mobile, setMobile] = useState(false);
+  const [resolvedCount, setResolvedCount] = useState(0);
+
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [location.pathname]);
-  const links = [
-    { to: "/", icon: "dashboard", text: "Tổng quan" },
-    {
-      to: "/tickets",
-      icon: "ticket",
-      text: user.role === "Staff" ? "Ticket được giao" : "Quản lý Ticket",
-    },
-    ...(user.role !== "Staff"
-      ? [{ to: "/tickets/new", icon: "plus", text: "Tạo yêu cầu" }]
-      : []),
-    ...(user.role === "Admin"
-      ? [
-          { to: "/admin", icon: "users", text: "Quản lý người dùng" },
-          { to: "/admin/categories", icon: "folder", text: "Danh mục sự cố" },
-        ]
-      : []),
-  ];
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (user?.role !== "User") {
+      setResolvedCount(0);
+      return;
+    }
+    let active = true;
+    api("/tickets?status=Resolved&page=1&pageSize=1")
+      .then((res) => {
+        if (active && typeof res?.total === "number") {
+          setResolvedCount(res.total);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user?.role, location.pathname, location.search]);
+
+  const searchParams = new URLSearchParams(location.search);
+  const groups = buildNavGroups(user.role, resolvedCount);
+  const allItems = groups.flatMap((g) => g.items);
+  const activeItem = allItems.find((item) =>
+    item.isActive(location.pathname, searchParams),
+  );
+
   const current =
-    location.pathname === "/profile"
-      ? "Hồ sơ"
-      : location.pathname.startsWith("/tickets/") &&
-          location.pathname !== "/tickets/new"
-        ? "Chi tiết ticket"
-        : links.find((l) => l.to === location.pathname)?.text ||
-          "Không gian làm việc";
+    location.pathname.startsWith("/tickets/") &&
+    location.pathname !== "/tickets/new"
+      ? "Chi tiết ticket"
+      : activeItem?.text || "Không gian làm việc";
+
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobile ? "open" : ""}`} id="sidebar">
@@ -231,23 +409,36 @@ function Layout() {
             <Icon name="close" />
           </button>
         </div>
-        <div className="sidebar-label">KHÔNG GIAN LÀM VIỆC</div>
-        <nav className="side-nav" aria-label="Điều hướng chính">
-          {links.map((l) => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              end
-              onClick={() => setMobile(false)}
-              className={({ isActive }) =>
-                `nav-link ${isActive ? "active" : ""}`
-              }
-            >
-              <Icon name={l.icon} />
-              <span>{l.text}</span>
-            </NavLink>
+
+        <nav className="side-nav-groups" aria-label="Điều hướng chính">
+          {groups.map((group) => (
+            <div className="side-nav-group" key={group.label}>
+              <div className="sidebar-label">{group.label}</div>
+              <div className="side-nav">
+                {group.items.map((l) => {
+                  const active = l.isActive(location.pathname, searchParams);
+                  return (
+                    <Link
+                      key={l.key}
+                      to={l.to}
+                      onClick={() => setMobile(false)}
+                      className={`nav-link ${active ? "active" : ""}`}
+                    >
+                      <Icon name={l.icon} />
+                      <span className="nav-link-text">{l.text}</span>
+                      {l.badge > 0 && (
+                        <span className="nav-badge">
+                          {l.badge > 99 ? "99+" : l.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           ))}
         </nav>
+
         <div className="sidebar-bottom">
           <div className="help-card">
             <span className="help-icon">
@@ -337,6 +528,14 @@ export default function App() {
             }
           />
           <Route path="tickets/:id" element={<TicketDetail />} />
+          <Route
+            path="sla"
+            element={
+              <Protected roles={["Admin", "Staff"]}>
+                <SlaMonitoring />
+              </Protected>
+            }
+          />
           <Route path="profile" element={<Profile />} />
           <Route
             path="admin"

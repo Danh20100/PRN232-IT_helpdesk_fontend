@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import KanbanBoard from "../KanbanBoard";
@@ -37,7 +37,12 @@ function Pager({ page, pages, loading, onPage }) {
 
 export default function Tickets() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const viewParam = searchParams.get("view");
+  const statusParam = searchParams.get("status");
+
   const [view, setView] = useState(() => {
+    if (viewParam === "kanban" || viewParam === "list") return viewParam;
     const saved = localStorage.getItem(VIEW_STORAGE_KEY);
     return saved === "kanban" ? "kanban" : "list";
   });
@@ -50,12 +55,12 @@ export default function Tickets() {
     pageSize: KANBAN_PAGE_SIZE,
   });
   const [cats, setCats] = useState([]);
-  const [q, setQ] = useState({
+  const [q, setQ] = useState(() => ({
     search: "",
-    status: "",
+    status: statusParam && STATUS_LABEL[statusParam] ? statusParam : "",
     categoryId: "",
     page: 1,
-  });
+  }));
   const [rPage, setRPage] = useState(1);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
@@ -63,12 +68,37 @@ export default function Tickets() {
   const [tick, setTick] = useState(0);
   const [kanbanLoading, setKanbanLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // Đồng bộ khi URL query params (?view=... hoặc ?status=...) thay đổi (từ Sidebar hoặc Back/Forward)
+  useEffect(() => {
+    if (viewParam === "kanban" || viewParam === "list") {
+      setView(viewParam);
+      localStorage.setItem(VIEW_STORAGE_KEY, viewParam);
+    } else if (statusParam === "Resolved") {
+      // Mở mục "Cần phản hồi" (/tickets?status=Resolved) sẽ ưu tiên hiển thị dạng danh sách để thấy bảng xác nhận
+      setView("list");
+    }
+  }, [viewParam, statusParam]);
+
+  useEffect(() => {
+    const nextStatus =
+      statusParam && STATUS_LABEL[statusParam] ? statusParam : "";
+    setQ((prev) => {
+      if (prev.status === nextStatus) return prev;
+      return { ...prev, status: nextStatus, page: 1 };
+    });
+    setRPage(1);
+  }, [statusParam]);
+
   const showMain = q.status !== "Resolved";
   const showResolved = q.status === "" || q.status === "Resolved";
 
   const changeView = (nextView) => {
     setView(nextView);
     localStorage.setItem(VIEW_STORAGE_KEY, nextView);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("view", nextView);
+    setSearchParams(nextParams, { replace: true });
   };
 
   useEffect(() => {
@@ -262,12 +292,22 @@ export default function Tickets() {
   };
 
   const upd = (k) => (e) => {
+    const val = e.target.value;
     setRPage(1);
-    setQ({ ...q, [k]: e.target.value, page: 1 });
+    setQ((prev) => ({ ...prev, [k]: val, page: 1 }));
+    if (k === "status") {
+      const nextParams = new URLSearchParams(searchParams);
+      if (val) nextParams.set("status", val);
+      else nextParams.delete("status");
+      setSearchParams(nextParams, { replace: true });
+    }
   };
   const clearFilters = () => {
     setRPage(1);
     setQ({ search: "", status: "", categoryId: "", page: 1 });
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("status");
+    setSearchParams(nextParams, { replace: true });
   };
   const closeTicket = async (t) => {
     setErr("");
@@ -300,7 +340,19 @@ export default function Tickets() {
     <>
       <PageHeader
         eyebrow="KHÔNG GIAN LÀM VIỆC / TICKET"
-        title={user.role === "Staff" ? "Ticket được giao" : "Quản lý Ticket"}
+        title={
+          user.role === "Staff"
+            ? isKanban
+              ? "Bảng Kanban"
+              : "Ticket được giao"
+            : user.role === "User"
+              ? q.status === "Resolved"
+                ? "Yêu cầu cần phản hồi"
+                : "Yêu cầu của tôi"
+              : isKanban
+                ? "Bảng Kanban"
+                : "Quản lý Ticket"
+        }
         description="Theo dõi, tìm kiếm và quản lý các yêu cầu hỗ trợ kỹ thuật."
         action={
           user.role !== "Staff" && (

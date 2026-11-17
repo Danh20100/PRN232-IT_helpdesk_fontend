@@ -13,9 +13,9 @@ import {
   fmt,
 } from "./ui";
 
-const SLA_META = {
+export const SLA_META = {
   NORMAL: {
-    label: "Trong hạn (On Track)",
+    label: "Trong hạn",
     short: "NORMAL",
     color: "#3f67db",
     bg: "#eaf0ff",
@@ -23,16 +23,15 @@ const SLA_META = {
     badgeClass: "sla-badge-normal",
   },
   WARNING: {
-    label: "Sắp quá hạn (Warning)",
+    label: "Sắp quá hạn",
     short: "WARNING",
     color: "#e6931f",
     bg: "#fff4e2",
     barClass: "sla-bar-warning",
-    badgeClass: "sla-bar-warning",
-    badgeCls: "sla-badge-warning",
+    badgeClass: "sla-badge-warning",
   },
   OVERDUE: {
-    label: "Quá hạn (Overdue)",
+    label: "Quá hạn",
     short: "OVERDUE",
     color: "#df4c4c",
     bg: "#fdeaea",
@@ -73,16 +72,22 @@ function formatRemaining(item) {
 
 function SlaBadge({ status }) {
   const m = SLA_META[status] || SLA_META.NORMAL;
-  const cls = m.badgeCls || m.badgeClass;
   return (
-    <span className={`badge sla-badge ${cls}`} title={m.label}>
+    <span className={`badge sla-badge ${m.badgeClass}`} title={m.label}>
       {m.short} · {m.label}
     </span>
   );
 }
 
-export default function SlaDashboardSection({ user, from, to }) {
+export default function SlaDashboardSection({
+  user,
+  from,
+  to,
+  mode = "full",
+  hideBanner = false,
+}) {
   const isAdmin = user?.role === "Admin";
+  const isSummary = mode === "summary";
   const [overview, setOverview] = useState(null);
   const [staffPerf, setStaffPerf] = useState([]);
   const [ticketsData, setTicketsData] = useState({
@@ -92,7 +97,7 @@ export default function SlaDashboardSection({ user, from, to }) {
     items: [],
   });
   const [loadingOverview, setLoadingOverview] = useState(true);
-  const [loadingTickets, setLoadingTickets] = useState(true);
+  const [loadingTickets, setLoadingTickets] = useState(!isSummary);
   const [err, setErr] = useState("");
 
   // Filters for SLA Ticket Monitoring Table
@@ -113,7 +118,7 @@ export default function SlaDashboardSection({ user, from, to }) {
 
     Promise.all([
       api(`/dashboard/sla-overview${qs}`),
-      api("/dashboard/staff-performance"),
+      api(`/dashboard/staff-performance${qs}`),
     ])
       .then(([ov, sp]) => {
         if (ov) setOverview(ov);
@@ -124,6 +129,7 @@ export default function SlaDashboardSection({ user, from, to }) {
   }, [from, to]);
 
   const loadTickets = useCallback(() => {
+    if (isSummary) return;
     setLoadingTickets(true);
     const p = new URLSearchParams();
     if (search.trim()) p.set("search", search.trim());
@@ -141,7 +147,17 @@ export default function SlaDashboardSection({ user, from, to }) {
       })
       .catch((e) => setErr(e.message))
       .finally(() => setLoadingTickets(false));
-  }, [search, priority, status, isAdmin, staffId, slaStatus, sort, page]);
+  }, [
+    isSummary,
+    search,
+    priority,
+    status,
+    isAdmin,
+    staffId,
+    slaStatus,
+    sort,
+    page,
+  ]);
 
   useEffect(() => {
     loadOverviewAndPerf();
@@ -182,7 +198,7 @@ export default function SlaDashboardSection({ user, from, to }) {
     },
     {
       title: "Completed Tickets",
-      sub: "Resolved / Closed / Cancelled",
+      sub: `Đúng hạn SLA: ${overview?.slaComplianceRate ?? 0}%`,
       value: overview?.completed ?? 0,
       icon: "check",
       tone: "green",
@@ -204,24 +220,29 @@ export default function SlaDashboardSection({ user, from, to }) {
 
   return (
     <div className="sla-dashboard-section">
-      <div className="sla-section-header">
-        <div>
-          <div className="eyebrow">SLA & TIME TRACKING MONITOR (24H POLICY)</div>
-          <h2>Giám sát thời gian xử lý & SLA</h2>
-          <p>
-            Theo dõi thời gian xử lý thực tế (quy tắc SLA 24 giờ liên tục), cảnh báo sắp quá hạn (20h) và quá hạn (24h).
-          </p>
+      {!hideBanner && (
+        <div className="sla-section-header">
+          <div>
+            <div className="eyebrow">SLA & TIME TRACKING MONITOR (24H POLICY)</div>
+            <h2>Giám sát thời gian xử lý & SLA</h2>
+            <p>
+              Theo dõi thời gian xử lý thực tế (quy tắc SLA 24 giờ liên tục), cảnh báo sắp quá hạn (20h) và quá hạn (24h).
+            </p>
+          </div>
+          <div className="sla-avg-box">
+            <span>Thời gian giải quyết trung bình</span>
+            <strong>
+              {overview?.averageResolutionHours
+                ? `${overview.averageResolutionHours} giờ`
+                : "0 giờ"}
+            </strong>
+            <small>
+              Tỷ lệ đúng hạn SLA: {overview?.slaComplianceRate ?? 0}% · Mở lại:{" "}
+              {overview?.reopenedCount ?? 0}
+            </small>
+          </div>
         </div>
-        <div className="sla-avg-box">
-          <span>Thời gian giải quyết trung bình</span>
-          <strong>
-            {overview?.averageResolutionHours
-              ? `${overview.averageResolutionHours} giờ`
-              : "0 giờ"}
-          </strong>
-          <small>Tính trên chu kỳ hiện tại của Ticket đã hoàn thành</small>
-        </div>
-      </div>
+      )}
 
       {err && <Err msg={err} />}
 
@@ -252,6 +273,11 @@ export default function SlaDashboardSection({ user, from, to }) {
               <h3>Phân bố theo tình trạng SLA</h3>
               <p>Số lượng Ticket theo 4 mức SLA (Normal, Warning, Overdue, Completed)</p>
             </div>
+            {isSummary && (
+              <Link className="link-arrow" to="/sla">
+                Chi tiết SLA <Icon name="arrow" size={15} />
+              </Link>
+            )}
           </div>
           <div className="status-report">
             {["NORMAL", "WARNING", "OVERDUE", "COMPLETED"].map((key) => {
@@ -262,7 +288,9 @@ export default function SlaDashboardSection({ user, from, to }) {
                 <div className="status-report-row sla-dist-row" key={key}>
                   <span className="sla-dist-label">
                     <i style={{ background: meta.color }} />
-                    {meta.short} <small>({meta.label})</small>
+                    <span>
+                      {meta.short} · <small>{meta.label}</small>
+                    </span>
                   </span>
                   <div className="progress-track">
                     <div
@@ -306,361 +334,371 @@ export default function SlaDashboardSection({ user, from, to }) {
         </section>
       </div>
 
-      {/* Chart 3: Hiệu suất & Ticket quá hạn theo từng Support Staff */}
-      <section className="panel sla-staff-panel">
-        <div className="panel-heading">
-          <div>
-            <h3>
-              {isAdmin
-                ? "Hiệu suất SLA & Ticket quá hạn theo Support Staff"
-                : "Chỉ số SLA cá nhân của bạn"}
-            </h3>
-            <p>
-              Thống kê số lượng Ticket đang xử lý, sắp quá hạn, quá hạn và thời gian xử lý trung bình (giờ)
-            </p>
-          </div>
-        </div>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Nhân viên hỗ trợ</th>
-                <th>Đang xử lý (Active)</th>
-                <th>Trong hạn (Normal)</th>
-                <th>Sắp quá hạn (Warning)</th>
-                <th>Quá hạn (Overdue)</th>
-                <th>Đã hoàn thành</th>
-                <th>TG xử lý TB</th>
-                <th>Tỷ lệ quá hạn</th>
-              </tr>
-            </thead>
-            <tbody>
-              {staffPerf.map((s) => (
-                <tr key={s.staffId}>
-                  <td>
-                    <div className="sla-staff-cell">
-                      <Avatar name={s.staffName} />
-                      <div>
-                        <strong>{s.staffName}</strong>
-                        <small className="subtle">{s.email}</small>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <strong>{s.activeCount}</strong>
-                  </td>
-                  <td>{s.onTrackCount}</td>
-                  <td>
-                    <span
-                      className={
-                        s.warningCount > 0 ? "sla-num-warning" : "muted"
-                      }
-                    >
-                      {s.warningCount}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      className={
-                        s.overdueCount > 0 ? "sla-num-overdue" : "muted"
-                      }
-                    >
-                      {s.overdueCount}
-                    </span>
-                  </td>
-                  <td>{s.completedCount}</td>
-                  <td>
-                    <strong>
-                      {s.averageResolutionHours > 0
-                        ? `${s.averageResolutionHours}h`
-                        : "—"}
-                    </strong>
-                  </td>
-                  <td style={{ minWidth: 140 }}>
-                    <div className="progress-track">
-                      <div
-                        className="sla-bar-overdue"
-                        style={{
-                          width: `${
-                            s.overdueCount > 0
-                              ? (s.overdueCount / maxStaffOverdue) * 100
-                              : 0
-                          }%`,
-                        }}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {staffPerf.length === 0 && (
-                <tr>
-                  <td colSpan={8}>
-                    <p className="muted" style={{ padding: 12 }}>
-                      Chưa có dữ liệu nhân viên hỗ trợ.
-                    </p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Danh sách Ticket Monitoring */}
-      <section className="panel sla-tickets-panel">
-        <div className="panel-heading">
-          <div>
-            <h3>Danh sách giám sát thời gian Ticket (SLA Monitoring)</h3>
-            <p>
-              Theo dõi Elapsed Time, SLA Deadline (24h), Remaining Time và tiến độ sử dụng thời gian của từng Ticket
-            </p>
-          </div>
-          <span className="panel-meta">{ticketsData.total} ticket</span>
-        </div>
-
-        {/* Filter Bar */}
-        <div className="filter-bar sla-filter-bar">
-          <div className="search-input">
-            <Icon name="search" size={17} />
-            <input
-              type="search"
-              placeholder="Tìm mã hoặc tiêu đề ticket…"
-              value={search}
-              onChange={(e) => {
-                setPage(1);
-                setSearch(e.target.value);
-              }}
-            />
-          </div>
-
-          <select
-            value={slaStatus}
-            onChange={(e) => {
-              setPage(1);
-              setSlaStatus(e.target.value);
-            }}
-            aria-label="Lọc theo trạng thái SLA"
-          >
-            <option value="">Tất cả SLA Status</option>
-            <option value="OVERDUE">OVERDUE (Quá hạn ≥ 24h)</option>
-            <option value="WARNING">WARNING (Sắp quá hạn 20h–24h)</option>
-            <option value="NORMAL">NORMAL (Trong hạn &lt; 20h)</option>
-            <option value="COMPLETED">COMPLETED (Đã hoàn thành)</option>
-          </select>
-
-          <select
-            value={priority}
-            onChange={(e) => {
-              setPage(1);
-              setPriority(e.target.value);
-            }}
-            aria-label="Lọc theo mức độ ưu tiên"
-          >
-            <option value="">Tất cả mức ưu tiên</option>
-            {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={status}
-            onChange={(e) => {
-              setPage(1);
-              setStatus(e.target.value);
-            }}
-            aria-label="Lọc theo trạng thái Ticket"
-          >
-            <option value="">Tất cả trạng thái</option>
-            {Object.entries(STATUS_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-
-          {isAdmin && (
-            <select
-              value={staffId}
-              onChange={(e) => {
-                setPage(1);
-                setStaffId(e.target.value);
-              }}
-              aria-label="Lọc theo nhân viên hỗ trợ"
-            >
-              <option value="">Tất cả Support Staff</option>
-              {staffPerf.map((s) => (
-                <option key={s.staffId} value={s.staffId}>
-                  {s.staffName}
-                </option>
-              ))}
-            </select>
-          )}
-
-          <select
-            value={sort}
-            onChange={(e) => {
-              setPage(1);
-              setSort(e.target.value);
-            }}
-            aria-label="Sắp xếp"
-          >
-            <option value="overdue_desc">Ưu tiên quá hạn nhất</option>
-            <option value="remaining_asc">Thời gian còn lại ít nhất</option>
-            <option value="elapsed_desc">Thời gian đã xử lý lâu nhất</option>
-            <option value="created_desc">Mới tạo gần nhất</option>
-          </select>
-        </div>
-
-        {/* Table */}
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Mã Ticket</th>
-                <th>Tiêu đề</th>
-                <th>Ưu tiên</th>
-                <th>Trạng thái</th>
-                <th>Nhân viên phụ trách</th>
-                <th>Ngày tạo / Bắt đầu SLA</th>
-                <th>Hạn SLA (24h)</th>
-                <th>Tiến độ thời gian (Elapsed / Remaining)</th>
-                <th>SLA Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingTickets ? (
-                <tr>
-                  <td colSpan={9}>
-                    <div className="empty" role="status">
-                      Đang tải dữ liệu giám sát SLA…
-                    </div>
-                  </td>
-                </tr>
-              ) : ticketsData.items.length === 0 ? (
-                <tr>
-                  <td colSpan={9}>
-                    <Empty
-                      title="Không có ticket phù hợp"
-                      description="Thử thay đổi bộ lọc SLA hoặc từ khóa tìm kiếm."
-                    />
-                  </td>
-                </tr>
-              ) : (
-                ticketsData.items.map((t) => {
-                  const meta = SLA_META[t.slaStatus] || SLA_META.NORMAL;
-                  return (
-                    <tr
-                      key={t.id}
-                      className={
-                        t.slaStatus === "OVERDUE"
-                          ? "sla-row-overdue"
-                          : t.slaStatus === "WARNING"
-                            ? "sla-row-warning"
-                            : undefined
-                      }
-                    >
-                      <td className="nowrap">
-                        <Link className="ticket-code" to={`/tickets/${t.id}`}>
-                          {t.code}
-                        </Link>
-                        {t.isReopened && (
-                          <span
-                            className="sla-reopen-tag"
-                            title="Ticket được mở lại, tính chu kỳ SLA mới"
-                          >
-                            Reopened
-                          </span>
-                        )}
-                      </td>
+      {!isSummary && (
+        <>
+          {/* Chart 3: Hiệu suất & Ticket quá hạn theo từng Support Staff */}
+          <section className="panel sla-staff-panel">
+            <div className="panel-heading">
+              <div>
+                <h3>
+                  {isAdmin
+                    ? "Hiệu suất SLA & Ticket quá hạn theo Support Staff"
+                    : "Chỉ số SLA cá nhân của bạn"}
+                </h3>
+                <p>
+                  Thống kê số lượng Ticket đang xử lý, sắp quá hạn, quá hạn, tỷ lệ đúng hạn SLA và thời gian xử lý trung bình
+                </p>
+              </div>
+            </div>
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nhân viên hỗ trợ</th>
+                    <th>Đang xử lý</th>
+                    <th>NORMAL</th>
+                    <th>WARNING</th>
+                    <th>OVERDUE</th>
+                    <th>Đã hoàn thành</th>
+                    <th>Mở lại (Reopen)</th>
+                    <th>Đúng hạn SLA</th>
+                    <th>TG xử lý TB</th>
+                    <th>Mức quá hạn</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staffPerf.map((s) => (
+                    <tr key={s.staffId}>
                       <td>
-                        <Link className="table-title" to={`/tickets/${t.id}`}>
-                          {t.title}
-                        </Link>
-                        <span className="subtle">{t.category}</span>
-                      </td>
-                      <td>
-                        <PriorityBadge p={t.priority} />
-                      </td>
-                      <td>
-                        <StatusBadge s={t.status} />
-                      </td>
-                      <td>
-                        {t.assignedTo || (
-                          <span className="muted">Chưa phân công</span>
-                        )}
-                      </td>
-                      <td className="nowrap">
-                        <div>{fmt(t.createdAt)}</div>
-                        {t.isReopened && (
-                          <small className="subtle">
-                            Mở lại: {fmt(t.slaStartAt)}
-                          </small>
-                        )}
-                      </td>
-                      <td className="nowrap">{fmt(t.slaDeadline)}</td>
-                      <td style={{ minWidth: 215 }}>
-                        <div className="sla-progress-cell">
-                          <div className="sla-progress-top">
-                            <strong>
-                              Đã qua:{" "}
-                              {formatDurationMinutes(t.elapsedMinutes)} (
-                              {t.elapsedHours}h)
-                            </strong>
-                            <span
-                              className={`sla-rem-text sla-rem-${t.slaStatus.toLowerCase()}`}
-                            >
-                              {formatRemaining(t)}
-                            </span>
-                          </div>
-                          <div className="sla-progress-track">
-                            <div
-                              className={`sla-progress-fill ${meta.barClass}`}
-                              style={{ width: `${t.progressPercent}%` }}
-                            />
+                        <div className="sla-staff-cell">
+                          <Avatar name={s.staffName} />
+                          <div>
+                            <strong>{s.staffName}</strong>
+                            <small className="subtle">{s.email}</small>
                           </div>
                         </div>
                       </td>
-                      <td className="nowrap">
-                        <SlaBadge status={t.slaStatus} />
+                      <td>
+                        <strong>{s.activeCount}</strong>
+                      </td>
+                      <td>{s.onTrackCount}</td>
+                      <td>
+                        <span
+                          className={
+                            s.warningCount > 0 ? "sla-num-warning" : "muted"
+                          }
+                        >
+                          {s.warningCount}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={
+                            s.overdueCount > 0 ? "sla-num-overdue" : "muted"
+                          }
+                        >
+                          {s.overdueCount}
+                        </span>
+                      </td>
+                      <td>{s.completedCount}</td>
+                      <td>{s.reopenedCount ?? 0}</td>
+                      <td>
+                        <strong>{s.slaComplianceRate ?? 0}%</strong>
+                      </td>
+                      <td>
+                        <strong>
+                          {s.averageResolutionHours > 0
+                            ? `${s.averageResolutionHours}h`
+                            : "—"}
+                        </strong>
+                      </td>
+                      <td style={{ minWidth: 130 }}>
+                        <div className="progress-track">
+                          <div
+                            className="sla-bar-overdue"
+                            style={{
+                              width: `${
+                                s.overdueCount > 0
+                                  ? (s.overdueCount / maxStaffOverdue) * 100
+                                  : 0
+                              }%`,
+                            }}
+                          />
+                        </div>
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {ticketsData.total > ticketsData.pageSize && (
-          <div className="pagination">
-            <span>
-              Trang {ticketsData.page} / {totalPages} ({ticketsData.total}{" "}
-              ticket)
-            </span>
-            <div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-small"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Trước
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-small"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Sau
-              </button>
+                  ))}
+                  {staffPerf.length === 0 && (
+                    <tr>
+                      <td colSpan={10}>
+                        <p className="muted" style={{ padding: 12 }}>
+                          Chưa có dữ liệu nhân viên hỗ trợ.
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-          </div>
-        )}
-      </section>
+          </section>
+
+          {/* Danh sách Ticket Monitoring */}
+          <section className="panel sla-tickets-panel">
+            <div className="panel-heading">
+              <div>
+                <h3>Danh sách giám sát thời gian Ticket (SLA Monitoring)</h3>
+                <p>
+                  Theo dõi Elapsed Time, SLA Deadline (24h), Remaining Time và tiến độ sử dụng thời gian của từng Ticket
+                </p>
+              </div>
+              <span className="panel-meta">{ticketsData.total} ticket</span>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="filter-bar sla-filter-bar">
+              <div className="search-field">
+                <Icon name="search" size={17} />
+                <input
+                  type="search"
+                  placeholder="Tìm mã hoặc tiêu đề ticket…"
+                  value={search}
+                  onChange={(e) => {
+                    setPage(1);
+                    setSearch(e.target.value);
+                  }}
+                />
+              </div>
+
+              <select
+                value={slaStatus}
+                onChange={(e) => {
+                  setPage(1);
+                  setSlaStatus(e.target.value);
+                }}
+                aria-label="Lọc theo trạng thái SLA"
+              >
+                <option value="">Tất cả SLA Status</option>
+                <option value="OVERDUE">OVERDUE · Quá hạn</option>
+                <option value="WARNING">WARNING · Sắp quá hạn</option>
+                <option value="NORMAL">NORMAL · Trong hạn</option>
+                <option value="COMPLETED">COMPLETED · Đã hoàn thành</option>
+              </select>
+
+              <select
+                value={priority}
+                onChange={(e) => {
+                  setPage(1);
+                  setPriority(e.target.value);
+                }}
+                aria-label="Lọc theo mức độ ưu tiên"
+              >
+                <option value="">Tất cả mức ưu tiên</option>
+                {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={status}
+                onChange={(e) => {
+                  setPage(1);
+                  setStatus(e.target.value);
+                }}
+                aria-label="Lọc theo trạng thái Ticket"
+              >
+                <option value="">Tất cả trạng thái</option>
+                {Object.entries(STATUS_LABEL).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+
+              {isAdmin && (
+                <select
+                  value={staffId}
+                  onChange={(e) => {
+                    setPage(1);
+                    setStaffId(e.target.value);
+                  }}
+                  aria-label="Lọc theo nhân viên hỗ trợ"
+                >
+                  <option value="">Tất cả Support Staff</option>
+                  {staffPerf.map((s) => (
+                    <option key={s.staffId} value={s.staffId}>
+                      {s.staffName}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <select
+                value={sort}
+                onChange={(e) => {
+                  setPage(1);
+                  setSort(e.target.value);
+                }}
+                aria-label="Sắp xếp"
+              >
+                <option value="overdue_desc">Ưu tiên quá hạn nhất</option>
+                <option value="remaining_asc">Thời gian còn lại ít nhất</option>
+                <option value="elapsed_desc">Thời gian đã xử lý lâu nhất</option>
+                <option value="created_desc">Mới tạo gần nhất</option>
+              </select>
+            </div>
+
+            {/* Table */}
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã Ticket</th>
+                    <th>Tiêu đề</th>
+                    <th>Ưu tiên</th>
+                    <th>Trạng thái</th>
+                    <th>Nhân viên phụ trách</th>
+                    <th>Ngày tạo / Bắt đầu SLA</th>
+                    <th>Hạn SLA (24h)</th>
+                    <th>Tiến độ thời gian (Elapsed / Remaining)</th>
+                    <th>SLA Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingTickets ? (
+                    <tr>
+                      <td colSpan={9}>
+                        <div className="empty" role="status">
+                          Đang tải dữ liệu giám sát SLA…
+                        </div>
+                      </td>
+                    </tr>
+                  ) : ticketsData.items.length === 0 ? (
+                    <tr>
+                      <td colSpan={9}>
+                        <Empty
+                          title="Không có ticket phù hợp"
+                          description="Thử thay đổi bộ lọc SLA hoặc từ khóa tìm kiếm."
+                        />
+                      </td>
+                    </tr>
+                  ) : (
+                    ticketsData.items.map((t) => {
+                      const meta = SLA_META[t.slaStatus] || SLA_META.NORMAL;
+                      return (
+                        <tr
+                          key={t.id}
+                          className={
+                            t.slaStatus === "OVERDUE"
+                              ? "sla-row-overdue"
+                              : t.slaStatus === "WARNING"
+                                ? "sla-row-warning"
+                                : undefined
+                          }
+                        >
+                          <td className="nowrap">
+                            <Link className="ticket-code" to={`/tickets/${t.id}`}>
+                              {t.code}
+                            </Link>
+                            {t.isReopened && (
+                              <span
+                                className="sla-reopen-tag"
+                                title="Ticket được mở lại, tính chu kỳ SLA mới"
+                              >
+                                Reopened
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <Link className="table-title" to={`/tickets/${t.id}`}>
+                              {t.title}
+                            </Link>
+                            <span className="subtle">{t.category}</span>
+                          </td>
+                          <td>
+                            <PriorityBadge p={t.priority} />
+                          </td>
+                          <td>
+                            <StatusBadge s={t.status} />
+                          </td>
+                          <td>
+                            {t.assignedTo || (
+                              <span className="muted">Chưa phân công</span>
+                            )}
+                          </td>
+                          <td className="nowrap">
+                            <div>{fmt(t.createdAt)}</div>
+                            {t.isReopened && (
+                              <small className="subtle">
+                                Mở lại: {fmt(t.slaStartAt)}
+                              </small>
+                            )}
+                          </td>
+                          <td className="nowrap">{fmt(t.slaDeadline)}</td>
+                          <td style={{ minWidth: 215 }}>
+                            <div className="sla-progress-cell">
+                              <div className="sla-progress-top">
+                                <strong>
+                                  Đã qua:{" "}
+                                  {formatDurationMinutes(t.elapsedMinutes)} (
+                                  {t.elapsedHours}h)
+                                </strong>
+                                <span
+                                  className={`sla-rem-text sla-rem-${t.slaStatus.toLowerCase()}`}
+                                >
+                                  {formatRemaining(t)}
+                                </span>
+                              </div>
+                              <div className="sla-progress-track">
+                                <div
+                                  className={`sla-progress-fill ${meta.barClass}`}
+                                  style={{ width: `${t.progressPercent}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="nowrap">
+                            <SlaBadge status={t.slaStatus} />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {ticketsData.total > ticketsData.pageSize && (
+              <div className="pagination">
+                <span>
+                  Trang {ticketsData.page} / {totalPages} ({ticketsData.total}{" "}
+                  ticket)
+                </span>
+                <div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-small"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    ‹ Trước
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-small"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Sau ›
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
